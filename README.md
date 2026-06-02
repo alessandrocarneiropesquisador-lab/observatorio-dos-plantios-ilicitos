@@ -1,4 +1,4 @@
-# 🌍 Observatório de Plantios Ilícitos no Brasil: Centro Informacional Georreferenciado
+# 🌍 Observatório de Plantios Ilícitos no Brasil: 
 
 > **Uma iniciativa do Núcleo de Estudos de Violência, Direitos Humanos e Políticas Públicas sobre Drogas (NEVIDH)** > *Programa de Pós-Graduação em Ciências Sociais (PPGCS) — Universidade Federal de Juiz de Fora (UFJF)*
 
