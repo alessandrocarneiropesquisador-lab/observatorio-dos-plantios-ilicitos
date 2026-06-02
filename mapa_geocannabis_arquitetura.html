@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_12139cd24de48ef36a503351fc4f3131 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.1.0/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.1.0/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.1.0/MarkerCluster.Default.css"/>
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_12139cd24de48ef36a503351fc4f3131" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_12139cd24de48ef36a503351fc4f3131 = L.map(
+                "map_12139cd24de48ef36a503351fc4f3131",
+                {
+                    center: [-15.0, -53.0],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 5,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_2b44fd6eebf8a36e34051d3215e6ef7d = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_2b44fd6eebf8a36e34051d3215e6ef7d.addTo(map_12139cd24de48ef36a503351fc4f3131);
+        
+    
+            var feature_group_43966c0af14bfd79b59de285115c59c6 = L.featureGroup(
+                {
+}
+            );
+        
+    
+            var marker_cluster_a8e9926d571d13302826bc1c8575b6b3 = L.markerClusterGroup(
+                {
+}
+            );
+        
+    
+            var marker_5d75235b7ec741081321d9d9e242ce91 = L.marker(
+                [-8.50548, -39.3094],
+                {
+}
+            ).addTo(marker_cluster_a8e9926d571d13302826bc1c8575b6b3);
+        
+    
+        var icon_b2c96c866f91b13941ef2c6548a49ff2 = L.icon({
+  "iconUrl": "https://img.icons8.com/color/48/marijuana-leaf.png",
+  "iconSize": [30, 30],
+});
+        
+    
+        var popup_da3fe590edd9085338bb4607277ac9d0 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_3db9b4ba40080a27f8960b0423543cc5 = $(`<div id="html_3db9b4ba40080a27f8960b0423543cc5" style="width: 100.0%; height: 100.0%;">     <div style='font-family: Arial; width: 280px; font-size: 12px;'>         <h4 style='color: #1a1a1a; margin-bottom: 5px; font-size: 14px;'>Erradicação no Sertão</h4>         <hr style='margin: 5px 0;'>         <b>📅 Data:</b> 10/10/2025<br>         <b>🛡️ Operação:</b> PF e PM<br>         <div style='background: #f4f4f4; padding: 8px; margin: 8px 0; border-left: 3px solid #d32f2f; max-height: 100px; overflow-y: auto;'>             Ação conjunta erradicou...         </div>         <a href='#' target='_blank' style='display: block; text-align: center; background: #1a1a1a; color: white; padding: 8px; text-decoration: none; font-weight: bold; border-radius: 4px;'>🔗 LER MATÉRIA ORIGINAL</a>     </div>     </div>`)[0];
+                popup_da3fe590edd9085338bb4607277ac9d0.setContent(html_3db9b4ba40080a27f8960b0423543cc5);
+            
+        
+
+        marker_5d75235b7ec741081321d9d9e242ce91.bindPopup(popup_da3fe590edd9085338bb4607277ac9d0)
+        ;
+
+        
+    
+    
+            marker_5d75235b7ec741081321d9d9e242ce91.bindTooltip(
+                `<div>
+                     
+    <div style='font-family: Arial; font-size: 12px; padding: 5px;'>
+        <b>📍 Cabrobó, PE</b><br>
+        <span style='color: #555;'>Tipo: Terrestre</span><br>
+        <span style='color: #d32f2f;'>🌿 146 mil pés</span><br>
+        <i>Clique para detalhes</i>
+    </div>
+    
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_5d75235b7ec741081321d9d9e242ce91.setIcon(icon_b2c96c866f91b13941ef2c6548a49ff2);
+            
+    
+            marker_cluster_a8e9926d571d13302826bc1c8575b6b3.addTo(feature_group_43966c0af14bfd79b59de285115c59c6);
+        
+    
+            feature_group_43966c0af14bfd79b59de285115c59c6.addTo(map_12139cd24de48ef36a503351fc4f3131);
+        
+    
+            var feature_group_920a7208135c11954ac002f81904b8b5 = L.featureGroup(
+                {
+}
+            );
+        
+    
+            var marker_b5639f7e47d2a9fb8b56af100c13f0b9 = L.marker(
+                [-2.63637, -60.9434],
+                {
+}
+            ).addTo(feature_group_920a7208135c11954ac002f81904b8b5);
+        
+    
+        var icon_287f149d9ebf14016808800ea5d881b9 = L.icon({
+  "iconUrl": "https://img.icons8.com/color/48/anchor.png",
+  "iconSize": [35, 35],
+});
+        
+    
+        var popup_b1cf0119012c53ada9480b1477ee18f5 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_190563e3cd1dad05a9af89e8bd0f2ee8 = $(`<div id="html_190563e3cd1dad05a9af89e8bd0f2ee8" style="width: 100.0%; height: 100.0%;">     <div style='font-family: Arial; width: 280px; font-size: 12px;'>         <h4 style='color: #1a1a1a; margin-bottom: 5px; font-size: 14px;'>Apreensão em Balsa</h4>         <hr style='margin: 5px 0;'>         <b>📅 Data:</b> 10/10/2025<br>         <b>🛡️ Operação:</b> PF<br>         <div style='background: #f4f4f4; padding: 8px; margin: 8px 0; border-left: 3px solid #d32f2f; max-height: 100px; overflow-y: auto;'>             Droga submersa...         </div>         <a href='#' target='_blank' style='display: block; text-align: center; background: #1a1a1a; color: white; padding: 8px; text-decoration: none; font-weight: bold; border-radius: 4px;'>🔗 LER MATÉRIA ORIGINAL</a>     </div>     </div>`)[0];
+                popup_b1cf0119012c53ada9480b1477ee18f5.setContent(html_190563e3cd1dad05a9af89e8bd0f2ee8);
+            
+        
+
+        marker_b5639f7e47d2a9fb8b56af100c13f0b9.bindPopup(popup_b1cf0119012c53ada9480b1477ee18f5)
+        ;
+
+        
+    
+    
+            marker_b5639f7e47d2a9fb8b56af100c13f0b9.bindTooltip(
+                `<div>
+                     
+    <div style='font-family: Arial; font-size: 12px; padding: 5px;'>
+        <b>📍 Rio Japurá, AM</b><br>
+        <span style='color: #555;'>Tipo: Fluvial</span><br>
+        <span style='color: #d32f2f;'>🌿 3 Toneladas (Skunk)</span><br>
+        <i>Clique para detalhes</i>
+    </div>
+    
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_b5639f7e47d2a9fb8b56af100c13f0b9.setIcon(icon_287f149d9ebf14016808800ea5d881b9);
+            
+    
+            var poly_line_46849c80843f32b63b750b772a23c3aa = L.polyline(
+                [[-2.63637, -60.9434], [-3.13637, -60.4434]],
+                {"bubblingMouseEvents": true, "color": "#007BFF", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "#007BFF", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 1.0, "smoothFactor": 1.0, "stroke": true, "weight": 5}
+            ).addTo(feature_group_920a7208135c11954ac002f81904b8b5);
+        
+    
+            poly_line_46849c80843f32b63b750b772a23c3aa.bindTooltip(
+                `<div>
+                     Trecho de Tráfico Fluvial
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            feature_group_920a7208135c11954ac002f81904b8b5.addTo(map_12139cd24de48ef36a503351fc4f3131);
+        
+    
+            var feature_group_a1c31c03f9a61b7e90c907aaf617d372 = L.featureGroup(
+                {
+}
+            );
+        
+    
+            var polygon_81cddce1f401ea064f01bf4fe12ee3ae = L.polygon(
+                [[-2.9, -46.7], [-2.9, -46.3], [-3.3000000000000003, -46.3], [-3.3000000000000003, -46.7]],
+                {"bubblingMouseEvents": true, "color": "#d32f2f", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ffeb3b", "fillOpacity": 0.4, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 1.0, "smoothFactor": 1.0, "stroke": true, "weight": 3}
+            ).addTo(feature_group_a1c31c03f9a61b7e90c907aaf617d372);
+        
+    
+            polygon_81cddce1f401ea064f01bf4fe12ee3ae.bindTooltip(
+                `<div>
+                     Área Delimitada: TI Alto Rio Guamá
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_7fdc64115813eeb57766c9f4906be9da = L.marker(
+                [-3.1, -46.5],
+                {
+}
+            ).addTo(feature_group_a1c31c03f9a61b7e90c907aaf617d372);
+        
+    
+        var icon_4b722f96dd0429845a17b73ac10842d0 = L.icon({
+  "iconUrl": "https://img.icons8.com/color/48/native-american-head-dress.png",
+  "iconSize": [40, 40],
+});
+        
+    
+        var popup_a76caff48a98267eb6119203561ff0bd = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_27a88775b5c9cfae03517779d15a0284 = $(`<div id="html_27a88775b5c9cfae03517779d15a0284" style="width: 100.0%; height: 100.0%;">     <div style='font-family: Arial; width: 280px; font-size: 12px;'>         <h4 style='color: #1a1a1a; margin-bottom: 5px; font-size: 14px;'>Operação Fusarium</h4>         <hr style='margin: 5px 0;'>         <b>📅 Data:</b> 10/10/2025<br>         <b>🛡️ Operação:</b> PF e IBAMA<br>         <div style='background: #f4f4f4; padding: 8px; margin: 8px 0; border-left: 3px solid #d32f2f; max-height: 100px; overflow-y: auto;'>             Plantação em área protegida...         </div>         <a href='#' target='_blank' style='display: block; text-align: center; background: #1a1a1a; color: white; padding: 8px; text-decoration: none; font-weight: bold; border-radius: 4px;'>🔗 LER MATÉRIA ORIGINAL</a>     </div>     </div>`)[0];
+                popup_a76caff48a98267eb6119203561ff0bd.setContent(html_27a88775b5c9cfae03517779d15a0284);
+            
+        
+
+        marker_7fdc64115813eeb57766c9f4906be9da.bindPopup(popup_a76caff48a98267eb6119203561ff0bd)
+        ;
+
+        
+    
+    
+            marker_7fdc64115813eeb57766c9f4906be9da.bindTooltip(
+                `<div>
+                     
+    <div style='font-family: Arial; font-size: 12px; padding: 5px;'>
+        <b>📍 TI Alto Rio Guamá, MA</b><br>
+        <span style='color: #555;'>Tipo: Terra Indígena</span><br>
+        <span style='color: #d32f2f;'>🌿 95 mil pés</span><br>
+        <i>Clique para detalhes</i>
+    </div>
+    
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_7fdc64115813eeb57766c9f4906be9da.setIcon(icon_4b722f96dd0429845a17b73ac10842d0);
+            
+    
+            var marker_f8cd38cf866d30ba0970799758bd93ab = L.marker(
+                [-3.15, -46.45],
+                {
+}
+            ).addTo(feature_group_a1c31c03f9a61b7e90c907aaf617d372);
+        
+    
+        var icon_aa05ca033a502636a13eae27cad98ac1 = L.icon({
+  "iconUrl": "https://img.icons8.com/color/48/marijuana-leaf.png",
+  "iconSize": [25, 25],
+});
+        
+    
+            marker_f8cd38cf866d30ba0970799758bd93ab.bindTooltip(
+                `<div>
+                     Ponto Exato da Erradicação na TI
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_f8cd38cf866d30ba0970799758bd93ab.setIcon(icon_aa05ca033a502636a13eae27cad98ac1);
+            
+    
+            feature_group_a1c31c03f9a61b7e90c907aaf617d372.addTo(map_12139cd24de48ef36a503351fc4f3131);
+        
+    
+            var layer_control_bce3d961962bd291ba540bbdf6868ca0_layers = {
+                base_layers : {
+                    "cartodbpositron" : tile_layer_2b44fd6eebf8a36e34051d3215e6ef7d,
+                },
+                overlays :  {
+                    "\ud83c\udf3f Opera\u00e7\u00f5es Terrestres (Regra)" : feature_group_43966c0af14bfd79b59de285115c59c6,
+                    "\u2693 Opera\u00e7\u00f5es Fluviais (Rios)" : feature_group_920a7208135c11954ac002f81904b8b5,
+                    "\ud83e\udeb6 Terras Ind\u00edgenas (Pol\u00edgonos)" : feature_group_a1c31c03f9a61b7e90c907aaf617d372,
+                },
+            };
+            let layer_control_bce3d961962bd291ba540bbdf6868ca0 = L.control.layers(
+                layer_control_bce3d961962bd291ba540bbdf6868ca0_layers.base_layers,
+                layer_control_bce3d961962bd291ba540bbdf6868ca0_layers.overlays,
+                {
+  "position": "topright",
+  "collapsed": false,
+  "autoZIndex": true,
+}
+            ).addTo(map_12139cd24de48ef36a503351fc4f3131);
+
+        
+</script>
+</html>
