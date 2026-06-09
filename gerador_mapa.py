@@ -8,7 +8,7 @@ Pesquisador: Ms. Alessandro Carneiro | NEVIDH - UFJF 2026
 Objetivo: Mapeamento Sociológico e Cartografia de Precisão
 =========================================================================================
 """
-
+from folium.plugins import MousePosition
 import pandas as pd
 import folium
 from folium.plugins import MarkerCluster
@@ -125,7 +125,14 @@ COR_OCEANO = '#e3eaef'
 mapa = folium.Map(
     location=[-14.235, -51.925], zoom_start=4, min_zoom=4, control_scale=True, tiles='OpenStreetMap'
 )
-
+MousePosition(
+    position='bottomleft',
+    separator='  |  Lat: ',
+    empty_string='Fora do Perímetro',
+    lng_first=False,
+    num_digits=6,
+    prefix='Long: '
+).add_to(mapa)
 mapa.get_root().html.add_child(folium.Element("<style>.leaflet-marker-pane { z-index: 600 !important; } .leaflet-tooltip-pane { z-index: 650 !important; } .leaflet-popup-pane { z-index: 700 !important; }</style>"))
 
 logger.info("A aplicar blecaute geométrico global...")
@@ -187,9 +194,9 @@ for index, row in df_mapa.iterrows():
     else:
         alerta_fluvial, tag_fluvial = "", ""
 
-    html_tooltip = f"<div style='font-family: Arial; font-size: 12px; padding: 6px; width: 260px; line-height: 1.4; white-space: normal !important; overflow-wrap: break-word; word-break: normal;'><b style='color: #1a1a1a; font-size: 13px; text-transform: uppercase;'>📍 {local_exato}</b><hr style='margin:4px 0;'><span style='color: #555;'>Data: {data_op}</span><br>{tag_fluvial}<span style='color: #1a1a1a;'><b>🌿 Erradicação Reportada:</b> {qtd}</span><br></div>"
+    html_tooltip = f"<div style='font-family: Arial; font-size: 12px; padding: 6px; min-width: 300px; max-width: 450px; white-space: normal; line-height: 1.4; white-space: normal !important; overflow-wrap: break-word; word-break: normal;'><b style='color: #1a1a1a; font-size: 13px; text-transform: uppercase;'>📍 {local_exato}</b><hr style='margin:4px 0;'><span style='color: #555;'>Data: {data_op}</span><br>{tag_fluvial}<span style='color: #1a1a1a;'><b>🌿 Erradicação Reportada:</b> {qtd}</span><br></div>"
     
-    html_popup = f"<div style='font-family: Arial; width: 330px; font-size: 12px; line-height: 1.6; color: #333; overflow-wrap: break-word;'><h4 style='color: #1a1a1a; margin-bottom: 8px; font-size: 13px; text-transform: uppercase; font-weight: 900;'>{titulo}</h4>{alerta_simultaneidade}{alerta_indigena}{alerta_fluvial}<div style='border-top: 2px solid #1a1a1a; border-bottom: 1px solid #ddd; padding: 10px 0; margin-bottom: 10px; font-size: 12px;'><div style='margin-bottom: 4px;'>📍 <b>Local:</b> {local_exato}</div><div style='margin-bottom: 4px;'>📅 <b>Data:</b> {data_op}</div><div style='margin-bottom: 4px;'>🚓 <b>Agência:</b> {instituicao}</div><div style='margin-bottom: 4px;'>🌿 <b>Pés Erradicados:</b> {qtd}</div><div style='margin-bottom: 4px;'>📦 <b>Maconha Prensada:</b> {prensado}</div><div style='margin-bottom: 4px;'>🔫 <b>Armamento:</b> {armas}</div></div><div style='background: #f8f9fa; padding: 12px; margin: 10px 0; border-left: 4px solid #27ae60; max-height: 140px; overflow-y: auto; text-align: justify; font-size: 11px;'>{resumo}</div><a href='{link}' target='_blank' style='display: block; text-align: center; background: #1a1a1a; color: white; padding: 10px; text-decoration: none; font-weight: bold; border-radius: 4px; border: 1px solid #000;'>🔗 ACESSAR FONTE DOCUMENTAL</a></div>"
+    html_popup = f"<div style='font-family: Arial; width: 100%; max-width: 300px; font-size: 12px; line-height: 1.6; color: #333; overflow-wrap: break-word;'><h4 style='color: #1a1a1a; margin-bottom: 8px; font-size: 13px; text-transform: uppercase; font-weight: 900;'>{titulo}</h4>{alerta_simultaneidade}{alerta_indigena}{alerta_fluvial}<div style='border-top: 2px solid #1a1a1a; border-bottom: 1px solid #ddd; padding: 10px 0; margin-bottom: 10px; font-size: 12px;'><div style='margin-bottom: 4px;'>📍 <b>Local:</b> {local_exato}</div><div style='margin-bottom: 4px;'>📅 <b>Data:</b> {data_op}</div><div style='margin-bottom: 4px;'>🚓 <b>Agência:</b> {instituicao}</div><div style='margin-bottom: 4px;'>🌿 <b>Pés Erradicados:</b> {qtd}</div><div style='margin-bottom: 4px;'>📦 <b>Maconha Prensada:</b> {prensado}</div><div style='margin-bottom: 4px;'><img src='pistola.png' style='width: 16px; height: auto; vertical-align: middle; margin-right: 4px; padding-bottom: 2px;'> <b>Armamento:</b> {armas}</div></div><div style='background: #f8f9fa; padding: 12px; margin: 10px 0; border-left: 4px solid #27ae60; max-height: 140px; overflow-y: auto; text-align: justify; font-size: 11px;'>{resumo}</div><a href='{link}' target='_blank' style='display: block; text-align: center; background: #1a1a1a; color: white; padding: 10px; text-decoration: none; font-weight: bold; border-radius: 4px; border: 1px solid #000;'>🔗 ACESSAR FONTE DOCUMENTAL</a></div>"
 
     folium.Marker(
         location=[row['latitude'], row['longitude']], 
@@ -197,16 +204,26 @@ for index, row in df_mapa.iterrows():
         tooltip=folium.Tooltip(html_tooltip, sticky=False, direction='auto'), 
         popup=folium.Popup(html_popup, max_width=350)
     ).add_to(marker_cluster)
-# =========================================================================================
-# 5. UI ESTÁTICA, PROPORÇÕES MILIMÉTRICAS E TRAVA JAVASCRIPT
+# 5. UI ESTÁTICA, CO-BRANDING INSTITUCIONAL E ACABAMENTO DE ALTO PADRÃO
 # =========================================================================================
 elementos_interface = f"""
     <style>
         .map-title {{
             position: fixed; top: 15px; left: 50%; transform: translateX(-50%); z-index: 1000;
-            font-family: Arial, sans-serif; font-size: 14px; font-weight: 900; background: rgba(255, 255, 255, 0.95);
-            padding: 10px 20px; border: 2px solid #1a1a1a; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            font-family: Arial, sans-serif; font-size: 15px; font-weight: 900; background: rgba(255, 255, 255, 0.98);
+            padding: 10px 22px; border: 2px solid #1a1a1a; box-shadow: 0 4px 15px rgba(0,0,0,0.25);
             text-transform: uppercase; white-space: nowrap;
+            
+            /* Engenharia Flexbox para Alinhamento Euro-Science */
+            display: flex; align-items: center; justify-content: center; gap: 18px;
+            min-width: 620px; border-radius: 2px;
+        }}
+        .logo-nevidh {{
+            height: 38px; width: auto; display: block;
+        }}
+        .logo-brasil {{
+            height: 24px; width: auto; display: block; border: 1px solid #eaeaea;
+            /* Compensação óptica: a bandeira é horizontal, então uma altura menor equilibra a massa visual */
         }}
         .rosa-ventos {{ 
             position: fixed; top: 20px; right: 20px; z-index: 1000; 
@@ -217,16 +234,30 @@ elementos_interface = f"""
             position: fixed; bottom: 215px; right: 20px; z-index: 1000; 
             background: rgba(255, 255, 255, 0.95); padding: 12px; border: 2px solid #1a1a1a; 
             font-family: Arial, sans-serif; font-size: 11px; width: 230px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: opacity 0.4s ease-in-out;
+        }}
+        .legend-box:hover {{
+            opacity: 0.10;
         }}
         .credits-box {{ 
             position: fixed; bottom: 20px; right: 20px; z-index: 1000; 
             background: rgba(255, 255, 255, 0.95); padding: 12px; border: 2px solid #1a1a1a; 
             font-family: Arial, sans-serif; font-size: 10px; width: 230px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             line-height: 1.5;
+            transition: opacity 0.4s ease-in-out;
+        }}
+        .credits-box:hover {{
+            opacity: 0.10;
         }}
     </style>
 
-    <div class="map-title">MAPEAMENTO ESPACIAL DA ERRADICAÇÃO DE CANNABIS NO BRASIL</div>
+    <div class="map-title">
+        <img src="nevidh_logo.png" alt="NEVIDH" class="logo-nevidh">
+        
+        <span style="letter-spacing: 0.5px; color: #1a1a1a;">ATLAS DA ERRADICAÇÃO DA CANNABIS NO BRASIL</span>
+        
+        <img src="brasil_flag.png" alt="Brasil" class="logo-brasil">
+    </div>
     
     <div class="rosa-ventos">
         <svg width="45" height="45" viewBox="0 0 100 100">
