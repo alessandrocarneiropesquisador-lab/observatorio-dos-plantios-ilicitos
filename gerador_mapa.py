@@ -103,6 +103,13 @@ for _col in ['origem_coleta', 'bairro', 'lat_bairro', 'lon_bairro', 'tipo_cultiv
     if _col not in df_base.columns: df_base[_col] = np.nan
 percentual_removido = ((contagem_antes - contagem_depois) / contagem_antes) * 100
 logger.info(f"Auditoria concluída. {contagem_antes - contagem_depois} duplicatas reais eliminadas ({percentual_removido:.1f}% da base). Matriz saneada com {contagem_depois} ocorrências únicas.")
+# Mesmo fato noticiado por dois veículos (links diferentes): a lista em eventos_repetidos.csv diz qual
+# notícia sai e qual fica. Regra: fica a de data mais antiga; a segunda costuma ser só a divulgação.
+ARQ_EVENTOS_REPETIDOS = 'eventos_repetidos.csv'
+_norm_link = lambda col: col.astype(str).str.strip().str.lower().str.replace(r'#.*$', '', regex=True).str.rstrip('/')
+LINKS_DESCARTADOS = set()
+if os.path.exists(ARQ_EVENTOS_REPETIDOS):
+    LINKS_DESCARTADOS = set(_norm_link(pd.read_csv(ARQ_EVENTOS_REPETIDOS, dtype=str)['link_descartado']))
 def rotina_limpeza(texto):
     if pd.isna(texto): return ""
     t = re.sub(r'\(.*?\)', '', str(texto)) 
@@ -228,6 +235,12 @@ np.random.seed(42)  # dispersão reproduzível entre execuções
 _amp = np.where(pd.to_numeric(df_mapa['lat_bairro'], errors='coerce').notna(), 0.0015, 0.004)  # ~170 m em bairro, ~1,3 km em município
 df_mapa['latitude'] += np.random.uniform(-1, 1, len(df_mapa)) * _amp
 df_mapa['longitude'] += np.random.uniform(-1, 1, len(df_mapa)) * _amp
+
+# Eventos repetidos (lista curada). Fica depois da dispersão, como a trava abaixo, para não deslocar os demais pontos.
+_fora = _norm_link(df_mapa['Link de acesso']).isin(LINKS_DESCARTADOS)
+if _fora.any():
+    logger.info(f"Eventos repetidos: {int(_fora.sum())} pontos retirados conforme '{ARQ_EVENTOS_REPETIDOS}'.")
+    df_mapa = df_mapa[~_fora].copy()
 
 # Trava de repetição por ponto. A mesma notícia chega dos dois arquivos de origem com o campo
 # 'município' redigido de formas diferentes ("Curaçá, Abaré" x "Entre Curaçá e Abaré") e por isso
