@@ -229,6 +229,26 @@ _amp = np.where(pd.to_numeric(df_mapa['lat_bairro'], errors='coerce').notna(), 0
 df_mapa['latitude'] += np.random.uniform(-1, 1, len(df_mapa)) * _amp
 df_mapa['longitude'] += np.random.uniform(-1, 1, len(df_mapa)) * _amp
 
+# Trava de repetição por ponto. A mesma notícia chega dos dois arquivos de origem com o campo
+# 'município' redigido de formas diferentes ("Curaçá, Abaré" x "Entre Curaçá e Abaré") e por isso
+# escapa da auditoria de duplicatas acima, que compara esse texto. Um ponto é repetição quando
+# coincide com outro em link, data, quantidade de pés e local. A trava fica depois da dispersão
+# para que os pontos mantidos não mudem de posição entre uma versão e outra do mapa.
+_norm = lambda col: col.astype(str).str.strip().str.lower().str.replace(r'\s+', ' ', regex=True)
+_chave = pd.DataFrame({
+    'link': _norm(df_mapa['Link de acesso']).str.replace(r'#.*$', '', regex=True).str.rstrip('/'),
+    'data': _norm(df_mapa['data']),
+    'qtd': _norm(df_mapa['Quantidade de pés encontrados']),
+    'local': df_mapa['municipio_match'].astype(str) + '/' + df_mapa['sigla_uf'].astype(str),
+}, index=df_mapa.index)
+_repetidos = _chave.duplicated(keep='first')
+if _repetidos.any():
+    df_mapa.loc[_repetidos, [col_alvo, 'municipio_match', 'sigla_uf', 'data', 'Titulo da reportagem', 'Link de acesso']].to_csv(
+        'pontos_repetidos.csv', index=False, encoding='utf-8-sig')
+    logger.info(f"Trava de repetição: {int(_repetidos.sum())} pontos repetidos retirados do mapa (registrados em pontos_repetidos.csv).")
+    df_mapa = df_mapa[~_repetidos].copy()
+logger.info(f"Pontos distintos no mapa: {len(df_mapa)}.")
+
 # =========================================================================================
 # 3. FUNDAÇÃO CARTOGRÁFICA, MÁSCARA DE ISOLAMENTO E POLÍGONOS
 # =========================================================================================
