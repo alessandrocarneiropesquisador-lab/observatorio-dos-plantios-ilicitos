@@ -79,7 +79,19 @@ df_n = pd.read_csv(ARQ_NOVO, sep=',', engine='python', on_bad_lines='skip')
 df_a.columns = df_a.columns.str.strip()
 df_n.columns = df_n.columns.str.strip()
 df_base = pd.concat([df_a, df_n], ignore_index=True)
+# Trava de Unificação: Eliminação de duplicatas reais nas matrizes brutas
+contagem_antes = len(df_base)
+logger.info(f"Matriz bruta consolidada com {contagem_antes} registros. Iniciando auditoria de duplicatas...")
 
+# Consideramos duplicata se houver mesma Data, Município, Instituição e Título
+df_base = df_base.drop_duplicates(
+    subset=['data', 'município', 'Instituição que efetuou a apreensao', 'Titulo da reportagem'], 
+    keep='first'
+)
+
+contagem_depois = len(df_base)
+percentual_removido = ((contagem_antes - contagem_depois) / contagem_antes) * 100
+logger.info(f"Auditoria concluída. {contagem_antes - contagem_depois} duplicatas reais eliminadas ({percentual_removido:.1f}% da base). Matriz saneada com {contagem_depois} ocorrências únicas.")
 def rotina_limpeza(texto):
     if pd.isna(texto): return ""
     t = re.sub(r'\(.*?\)', '', str(texto)) 
@@ -105,16 +117,37 @@ df_explodido['uf_especial'] = df_explodido['municipio_match'].apply(lambda x: EN
 logger.info("Acessando malha geodésica do IBGE...")
 coords = pd.read_csv(io.StringIO(requests.get("https://raw.githubusercontent.com/kelvins/municipios-brasileiros/main/csv/municipios.csv", timeout=10).text))
 coords['nome_match'] = coords['nome'].astype(str).str.lower().str.strip()
-coords['sigla_uf'] = coords['codigo_uf'].map(MAPA_UF)
-coords = coords.drop_duplicates(subset=['nome_match'])
+coords['sigla_uf'] = coords['codigo_uf'].map(MAPA_UF).astype(str).str.upper().str.strip()
 
-df_mapa = pd.merge(df_explodido, coords[['nome_match', 'latitude', 'longitude', 'sigla_uf']], left_on='municipio_match', right_on='nome_match', how='left')
+# Dicionário de normalização de Estados para Siglas
+DE_NOME_PARA_SIGLA = {
+    'acre': 'AC', 'alagoas': 'AL', 'amapá': 'AP', 'amazonas': 'AM', 'bahia': 'BA',
+    'ceará': 'CE', 'distrito federal': 'DF', 'espírito santo': 'ES', 'goiás': 'GO',
+    'maranhão': 'MA', 'mato grosso': 'MT', 'mato grosso do sul': 'MS', 'minas gerais': 'MG',
+    'pará': 'PA', 'paraíba': 'PB', 'paraná': 'PR', 'pernambuco': 'PE', 'piauí': 'PI',
+    'rio de janeiro': 'RJ', 'rio grande do norte': 'RN', 'rio grande do sul': 'RS',
+    'rondônia': 'RO', 'roraima': 'RR', 'santa catarina': 'SC', 'são paulo': 'SP',
+    'sergipe': 'SE', 'tocantins': 'TO'
+}
+
+# Normalizando a coluna 'Estado' da sua matriz original
+df_explodido['estado_match'] = df_explodido['Estado'].astype(str).str.lower().str.strip().map(DE_NOME_PARA_SIGLA)
+df_explodido['estado_match'] = df_explodido['estado_match'].combine_first(df_explodido['Estado'].astype(str).str.upper().str.strip())
+
+# Junção rigorosa com trava dupla (Município + UF)
+df_mapa = pd.merge(
+    df_explodido, 
+    coords[['nome_match', 'sigla_uf', 'latitude', 'longitude']], 
+    left_on=['municipio_match', 'estado_match'], 
+    right_on=['nome_match', 'sigla_uf'], 
+    how='left'
+)
+
+# Acoplamento de entidades especiais (áreas indígenas, rios, etc)
 df_mapa['latitude'] = df_mapa['lat_especial'].combine_first(df_mapa['latitude'])
 df_mapa['longitude'] = df_mapa['lon_especial'].combine_first(df_mapa['longitude'])
 df_mapa['sigla_uf'] = df_mapa['uf_especial'].combine_first(df_mapa['sigla_uf'])
 df_mapa = df_mapa.dropna(subset=['latitude', 'longitude']).copy()
-
-np.random.seed(42) 
 df_mapa['latitude'] += np.random.uniform(-0.012, 0.012, len(df_mapa))
 df_mapa['longitude'] += np.random.uniform(-0.012, 0.012, len(df_mapa))
 
@@ -168,7 +201,6 @@ folium.Polygon(
 ICON_LEAF = "https://img.icons8.com/color/48/marijuana-leaf.png" 
 codigo_cluster_js = f"function(c) {{ return L.divIcon({{ html: '<div style=\"background-image: url({ICON_LEAF}); background-size: cover; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-family: Arial; font-weight: 900; color: #000; font-size: 13px; filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.4));\">' + c.getChildCount() + '</div>', className: 'custom-cluster-leaf', iconSize: L.point(50, 50) }}); }}"
 marker_cluster = MarkerCluster(showCoverageOnHover=False, icon_create_function=codigo_cluster_js).add_to(mapa)
-
 for index, row in df_mapa.iterrows():
     local_base = str(row.get('municipio_lista', 'Desconhecido')).title()
     local_exato = f"{local_base} - {str(row.get('sigla_uf', '??'))}" 
@@ -186,7 +218,16 @@ for index, row in df_mapa.iterrows():
 
     alerta_simultaneidade = f"<div style='background: #fdf5e6; color: #856404; padding: 10px; margin-bottom: 12px; border-left: 5px solid #d35400; font-family: Arial; font-size: 11px;'><b style='font-size: 12px;'>⚠️ ABRANGÊNCIA COMPARTILHADA</b><br>Operação abrangeu {num_cidades} municípios:<br><i>{str(row.get('municipios_envolvidos', ''))}</i></div>" if num_cidades > 1 else ""
     
-    alerta_indigena = f"<div style='background: #ffe6e6; color: #721c24; padding: 10px; margin-bottom: 12px; border-left: 5px solid #8b0000; font-family: Arial; font-size: 11px; display: flex; align-items: center;'><img src='logo_funai.png' style='width: 45px; height: 45px; margin-right: 12px; background: white; padding: 2px; border-radius: 50%; border: 1px solid #8b0000;'><div><b style='font-size: 12px;'>ALERTA DE JURISDIÇÃO: TERRITÓRIO ORIGINÁRIO</b><br>Operação estatal em Terra Indígena demarcada.</div></div>" if "guamá" in local_base.lower() or "indígena" in local_base.lower() else ""
+    # ---------------------------------------------------------------------------------
+    # MOTOR DE VARREDURA PROFUNDA PARA ALERTA DE JURISDIÇÃO INDÍGENA
+    # ---------------------------------------------------------------------------------
+    texto_auditoria_indigena = f"{local_base} {titulo} {resumo} {str(row.get('localidade onde foi encontrado o plantio', ''))}".lower()
+
+    if any(termo in texto_auditoria_indigena for termo in ['guamá', 'indígena', 'indigena', 'funai', 'aldeia', 'tiarg']):
+        alerta_indigena = f"<div style='background: #ffe6e6; color: #721c24; padding: 10px; margin-bottom: 12px; border-left: 5px solid #8b0000; font-family: Arial; font-size: 11px; display: flex; align-items: center;'><img src='logo_funai.png' style='width: 45px; height: 45px; margin-right: 12px; background: white; padding: 2px; border-radius: 50%; border: 1px solid #8b0000;'><div><b style='font-size: 12px;'>ALERTA DE JURISDIÇÃO: TERRITÓRIO ORIGINÁRIO</b><br>Operação estatal em Terra Indígena demarcada ou área de amortecimento. A assimetria institucional é crítica.</div></div>"
+    else:
+        alerta_indigena = ""
+    # ---------------------------------------------------------------------------------
 
     if any(termo in local_base.lower() for termo in ['rio ', 'ilha', 'barco', 'japurá']):
         alerta_fluvial = "<div style='background: #e6f2ff; color: #004085; padding: 10px; margin-bottom: 12px; border-left: 5px solid #0056b3; font-family: Arial; font-size: 11px; display: flex; align-items: center;'><div style='font-size: 24px; margin-right: 12px;'>🚤</div><div><b style='font-size: 12px;'>ALERTA TÁTICO: OPERAÇÃO FLUVIAL</b><br>Intervenção em calha fluvial ou arquipélago. O isolamento geográfico potencializa a assimetria da força.</div></div>"
@@ -204,59 +245,73 @@ for index, row in df_mapa.iterrows():
         tooltip=folium.Tooltip(html_tooltip, sticky=False, direction='auto'), 
         popup=folium.Popup(html_popup, max_width=350)
     ).add_to(marker_cluster)
+
+# =========================================================================================
 # 5. UI ESTÁTICA, CO-BRANDING INSTITUCIONAL E ACABAMENTO DE ALTO PADRÃO
 # =========================================================================================
 elementos_interface = f"""
     <style>
         .map-title {{
-            position: fixed; top: 15px; left: 50%; transform: translateX(-50%); z-index: 1000;
-            font-family: Arial, sans-serif; font-size: 15px; font-weight: 900; background: rgba(255, 255, 255, 0.98);
-            padding: 10px 22px; border: 2px solid #1a1a1a; box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+            position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 1000;
+            font-family: Arial, sans-serif; font-size: 13px; font-weight: 900; background: rgba(255, 255, 255, 0.98);
+            padding: 4px 12px; border: 2px solid #1a1a1a; box-shadow: 0 4px 10px rgba(0,0,0,0.25);
             text-transform: uppercase; white-space: nowrap;
-            
-            /* Engenharia Flexbox para Alinhamento Euro-Science */
-            display: flex; align-items: center; justify-content: center; gap: 18px;
-            min-width: 620px; border-radius: 2px;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            border-radius: 2px;
         }}
-        .logo-nevidh {{
-            height: 38px; width: auto; display: block;
-        }}
-        .logo-brasil {{
-            height: 24px; width: auto; display: block; border: 1px solid #eaeaea;
-            /* Compensação óptica: a bandeira é horizontal, então uma altura menor equilibra a massa visual */
-        }}
+        .logo-nevidh {{ height: 32px; width: auto; display: block; }}
+        .logo-brasil {{ height: 18px; width: auto; display: block; border: 1px solid #eaeaea; }}
         .rosa-ventos {{ 
             position: fixed; top: 20px; right: 20px; z-index: 1000; 
-            background: rgba(255,255,255,0.8); border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            padding: 5px;
+            background: rgba(255,255,255,0.8); border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); padding: 5px;
         }}
         .legend-box {{ 
-            position: fixed; bottom: 215px; right: 20px; z-index: 1000; 
-            background: rgba(255, 255, 255, 0.95); padding: 12px; border: 2px solid #1a1a1a; 
-            font-family: Arial, sans-serif; font-size: 11px; width: 230px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            position: fixed; bottom: 165px; right: 20px; z-index: 1000; 
+            background: rgba(255, 255, 255, 0.95); padding: 8px 12px; border: 2px solid #1a1a1a; 
+            font-family: Arial, sans-serif; font-size: 10px; width: 230px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             transition: opacity 0.4s ease-in-out;
         }}
-        .legend-box:hover {{
-            opacity: 0.10;
-        }}
+        .legend-box:hover {{ opacity: 0.10; }}
         .credits-box {{ 
             position: fixed; bottom: 20px; right: 20px; z-index: 1000; 
-            background: rgba(255, 255, 255, 0.95); padding: 12px; border: 2px solid #1a1a1a; 
+            background: rgba(255, 255, 255, 0.95); padding: 8px 12px; border: 2px solid #1a1a1a; 
             font-family: Arial, sans-serif; font-size: 10px; width: 230px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            line-height: 1.5;
-            transition: opacity 0.4s ease-in-out;
+            line-height: 1.4; transition: opacity 0.4s ease-in-out;
         }}
-        .credits-box:hover {{
-            opacity: 0.10;
+        .credits-box:hover {{ opacity: 0.10; }}
+
+      /* =========================================================
+           MOTOR DE RESPONSIVIDADE (MOBILE OVERRIDE V5)
+           ========================================================= */
+        @media screen and (max-width: 768px) {{
+            .map-title {{
+                width: 75vw; min-width: 0; padding: 4px; font-size: 8px;
+                white-space: normal; text-align: center; gap: 4px; 
+                top: 5px; left: 55%; transform: translateX(-50%);
+            }}
+            .logo-nevidh {{ height: 16px; }}
+            .logo-brasil {{ height: 10px; }}
+            
+            .rosa-ventos {{ top: 40px; right: 5px; transform: scale(0.55); transform-origin: top right; }}
+            
+            .legend-box {{ bottom: 80px; right: 5px; width: 110px; padding: 4px; font-size: 6.5px; line-height: 1; }}
+            .legend-box b {{ font-size: 7px !important; margin-bottom: 2px !important; padding-bottom: 1px !important; border-bottom: 0.5px solid #1a1a1a; }}
+            .legend-box table td {{ padding: 1px 0 !important; font-size: 6.5px !important; }}
+            .legend-box i {{ width: 7px !important; height: 7px !important; }}
+            .legend-box img {{ width: 8px !important; height: auto !important; }}
+            
+            .credits-box {{ bottom: 5px; right: 5px; width: 110px; padding: 4px; font-size: 6px; line-height: 1.1; }}
+            
+            .leaflet-control-zoom a {{ width: 20px !important; height: 20px !important; line-height: 20px !important; font-size: 12px !important; }}
+            .leaflet-control-zoom {{ margin-top: 5px !important; margin-left: 5px !important; }}
+            .leaflet-control-mouseposition {{ display: none !important; }}
         }}
     </style>
-
+    
     <div class="map-title">
-        <img src="nevidh_logo.png" alt="NEVIDH" class="logo-nevidh">
-        
-        <span style="letter-spacing: 0.5px; color: #1a1a1a;">ATLAS DA ERRADICAÇÃO DA CANNABIS NO BRASIL</span>
-        
         <img src="brasil_flag.png" alt="Brasil" class="logo-brasil">
+        <span style="letter-spacing: 0.5px; color: #1a1a1a;">ATLAS DA ERRADICAÇÃO DA CANNABIS NO BRASIL</span>
+        <img src="nevidh_logo.png" alt="NEVIDH" class="logo-nevidh">
     </div>
     
     <div class="rosa-ventos">
@@ -271,12 +326,12 @@ elementos_interface = f"""
     </div>
 
     <div class="legend-box">
-        <b style="display:block; margin-bottom:6px; border-bottom:1px solid #1a1a1a; padding-bottom:4px; font-size:12px;">TIPOLOGIA TERRITORIAL</b>
+        <b style="display:block; margin-bottom:4px; border-bottom:1px solid #1a1a1a; padding-bottom:2px; font-size:11px;">TIPOLOGIA TERRITORIAL</b>
         <table style="width:100%; border-collapse:collapse;">
-            <tr><td style="padding:4px 0;">Área de Concentração</td><td style="text-align:right;"><i style="background:rgba(255, 165, 0, 0.5); width:14px; height:14px; display:inline-block; border:1px solid #d35400;"></i></td></tr>
-            <tr><td style="padding:4px 0;">Território Indígena</td><td style="text-align:right;"><i style="background:rgba(255, 69, 0, 0.2); width:14px; height:14px; display:inline-block; border:1px solid #8b0000;"></i></td></tr>
-            <tr><td style="padding:4px 0;">Intervenção Hídrica</td><td style="text-align:right; font-size:14px;">🚤</td></tr>
-            <tr><td style="padding:4px 0;">Ponto de Intervenção</td><td style="text-align:right;"><img src="{ICON_LEAF}" width="16"></td></tr>
+            <tr><td style="padding:2px 0;">Área de Concentração</td><td style="text-align:right;"><i style="background:rgba(255, 165, 0, 0.5); width:12px; height:12px; display:inline-block; border:1px solid #d35400;"></i></td></tr>
+            <tr><td style="padding:2px 0;">Território Indígena</td><td style="text-align:right;"><i style="background:rgba(255, 69, 0, 0.2); width:12px; height:12px; display:inline-block; border:1px solid #8b0000;"></i></td></tr>
+            <tr><td style="padding:2px 0;">Intervenção Hídrica</td><td style="text-align:right; font-size:13px;">🚤</td></tr>
+            <tr><td style="padding:2px 0;">Ponto de Intervenção</td><td style="text-align:right;"><img src="{ICON_LEAF}" width="14"></td></tr>
         </table>
     </div>
 
@@ -285,7 +340,7 @@ elementos_interface = f"""
         <b>Desenvolvimento:</b> Ms. Alessandro Carneiro<br>
         <b>Dados:</b> Maria Alice Vallo<br>
         <b>Parceiro:</b> Canabis Monitor<br>
-        <hr style="margin:6px 0; border:0; border-top:1px solid #1a1a1a;">
+        <hr style="margin:4px 0; border:0; border-top:1px solid #1a1a1a;">
         <div style="text-align:center; font-weight:900;">NEVIDH - UFJF 2026</div>
     </div>
 """
