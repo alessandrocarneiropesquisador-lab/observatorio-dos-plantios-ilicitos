@@ -340,6 +340,15 @@ for index, row in df_mapa.iterrows():
 # =========================================================================================
 elementos_interface = f"""
     <style>
+        .map-title:hover {{ box-shadow: 0 6px 20px rgba(0,0,0,0.35); }}
+        .titulo-link {{ color: #1a1a1a; text-decoration: none; display: inline-flex; align-items: center;
+            gap: 7px; border-bottom: 1px solid transparent; transition: border-color .2s, color .2s; }}
+        .titulo-link:hover {{ color: #1b5e20; border-bottom-color: #1b5e20; }}
+        .titulo-seta {{ font-size: 11px; opacity: .55; }}
+        .titulo-link:hover .titulo-seta {{ opacity: 1; }}
+        .rosa-ventos {{ cursor: grab; user-select: none; touch-action: none; }}
+        .rosa-ventos:hover {{ box-shadow: 0 4px 14px rgba(0,0,0,0.35); }}
+        .rosa-ventos.arrastando {{ cursor: grabbing; opacity: .85; }}
         .map-title {{
             position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 1000;
             font-family: Arial, sans-serif; font-size: 13px; font-weight: 900; background: rgba(255, 255, 255, 0.98);
@@ -399,18 +408,33 @@ elementos_interface = f"""
     
     <div class="map-title">
         <img src="brasil_flag.png" alt="Brasil" class="logo-brasil">
-        <span style="letter-spacing: 0.5px; color: #1a1a1a;">ATLAS DA ERRADICAÇÃO DA CANNABIS NO BRASIL</span>
+        <a href="https://www2.ufjf.br/nevidh/?p=1290" target="_blank" rel="noopener noreferrer"
+           class="titulo-link" title="Abrir a página do Observatório dos Plantios Ilícitos no Brasil (NEVIDH/UFJF)">
+           <span style="letter-spacing: 0.5px;">ATLAS DA ERRADICAÇÃO DA CANNABIS NO BRASIL</span>
+           <span class="titulo-seta" aria-hidden="true">↗</span>
+        </a>
         <img src="nevidh_logo.png" alt="NEVIDH" class="logo-nevidh">
     </div>
     
-    <div class="rosa-ventos">
-        <svg width="45" height="45" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="42" fill="none" stroke="#1a1a1a" stroke-width="2"/>
-            <polygon points="50,10 58,42 50,50 42,42" fill="#1a1a1a"/>
-            <polygon points="50,90 58,58 50,50 42,58" fill="#555"/>
-            <polygon points="10,50 42,42 50,50 42,58" fill="#888"/>
-            <polygon points="90,50 58,42 50,50 58,58" fill="#ccc"/>
-            <circle cx="50" cy="50" r="4" fill="white" stroke="#1a1a1a" stroke-width="1"/>
+    <div class="rosa-ventos" id="rosaVentos" title="Clique para reenquadrar o Brasil · arraste para reposicionar">
+        <svg viewBox="0 0 120 120" width="62" height="62" aria-label="Rosa dos ventos">
+            <defs>
+                <linearGradient id="agN" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#c0392b"/><stop offset="100%" stop-color="#7b241c"/>
+                </linearGradient>
+            </defs>
+            <circle cx="60" cy="60" r="56" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.6"/>
+            <circle cx="60" cy="60" r="47" fill="none" stroke="#1a1a1a" stroke-width="0.7"/>
+            <g id="rosaTicks" stroke="#1a1a1a"></g>
+            <polygon points="60,16 66,58 60,62 54,58" fill="url(#agN)"/>
+            <polygon points="60,104 66,62 60,58 54,62" fill="#1a1a1a"/>
+            <polygon points="16,60 58,54 62,60 58,66" fill="#9a9a9a"/>
+            <polygon points="104,60 62,54 58,60 62,66" fill="#d5d5d5"/>
+            <circle cx="60" cy="60" r="5" fill="#fff" stroke="#1a1a1a" stroke-width="1.4"/>
+            <text x="60" y="13" text-anchor="middle" font-family="Arial" font-size="12" font-weight="900" fill="#7b241c">N</text>
+            <text x="60" y="117" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#1a1a1a">S</text>
+            <text x="114" y="64" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#1a1a1a">L</text>
+            <text x="6" y="64" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#1a1a1a">O</text>
         </svg>
     </div>
 
@@ -454,6 +478,60 @@ trava_centro_js = f"""
         }}
         map_instance.on('zoomend', gerenciar_trava_centro);
         gerenciar_trava_centro();
+
+        // --- Popup: não fica sob o título nem cortado pela borda da tela ---
+        function folga() {{
+            var largo = window.innerWidth > 760;
+            return {{ cima: L.point(20, largo ? 95 : 70),
+                      baixo: L.point(largo ? 265 : 20, largo ? 75 : 25) }};
+        }}
+        if (window.L && L.Popup && L.Popup.mergeOptions) {{
+            L.Popup.mergeOptions({{ autoPan: true, keepInView: true,
+                autoPanPaddingTopLeft: folga().cima, autoPanPaddingBottomRight: folga().baixo }});
+        }}
+        map_instance.on('popupopen', function(e) {{
+            var pop = e.popup, f = folga();
+            pop.options.autoPan = true;
+            pop.options.keepInView = true;
+            pop.options.autoPanPaddingTopLeft = f.cima;
+            pop.options.autoPanPaddingBottomRight = f.baixo;
+            pop.options.maxHeight = Math.max(200, map_instance.getSize().y - (f.cima.y + f.baixo.y + 40));
+            pop.update();
+        }});
+
+        // --- Rosa dos ventos: graduação, arrasto e reenquadramento ---
+        var ticks = document.getElementById('rosaTicks');
+        if (ticks) {{
+            for (var g = 0; g < 360; g += 15) {{
+                var maior = (g % 45 === 0), r1 = maior ? 40 : 44, rad = (g - 90) * Math.PI / 180;
+                var l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                l.setAttribute('x1', 60 + r1 * Math.cos(rad)); l.setAttribute('y1', 60 + r1 * Math.sin(rad));
+                l.setAttribute('x2', 60 + 47 * Math.cos(rad)); l.setAttribute('y2', 60 + 47 * Math.sin(rad));
+                l.setAttribute('stroke-width', maior ? 1.4 : 0.6); ticks.appendChild(l);
+            }}
+        }}
+        var rosa = document.getElementById('rosaVentos');
+        if (rosa) {{
+            var arrastando = false, moveu = false, ox = 0, oy = 0;
+            rosa.addEventListener('pointerdown', function(ev) {{
+                arrastando = true; moveu = false;
+                var cx = rosa.getBoundingClientRect();
+                ox = ev.clientX - cx.left; oy = ev.clientY - cx.top;
+                rosa.setPointerCapture(ev.pointerId); rosa.classList.add('arrastando');
+                ev.preventDefault(); ev.stopPropagation();
+            }});
+            rosa.addEventListener('pointermove', function(ev) {{
+                if (!arrastando) return;
+                moveu = true;
+                rosa.style.left = (ev.clientX - ox) + 'px';
+                rosa.style.top = (ev.clientY - oy) + 'px';
+                rosa.style.right = 'auto';
+            }});
+            rosa.addEventListener('pointerup', function(ev) {{
+                arrastando = false; rosa.classList.remove('arrastando');
+                if (!moveu) {{ map_instance.setView([-14.235, -51.925], 4); }}
+            }});
+        }}
     }});
 </script>
 """
