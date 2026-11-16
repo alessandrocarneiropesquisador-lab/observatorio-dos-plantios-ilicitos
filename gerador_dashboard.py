@@ -19,6 +19,8 @@ REGRAS DE CONSTRUÇÃO DO EVENTO
    notícia repetida nos dois arquivos de origem (mesmo link, data e quantidade); por fim, a
    lista curada de eventos_repetidos.csv (mesmo fato noticiado por dois veículos).
 2. Ficam fora os balanços agregados: data com "mensuração" ou município "Aparato geral".
+   Exceção: operação nomeada, com período e locais definidos, conta como um evento e entra
+   por ajustes_dashboard.csv (regra 6).
 3. UF: o campo Estado precisa citar exatamente uma UF ("Norte da Bahia." vale Bahia;
    "Pernambuco e Paraíba" fica fora).
 4. Ano: o da data; em data parcial, o único ano citado no campo.
