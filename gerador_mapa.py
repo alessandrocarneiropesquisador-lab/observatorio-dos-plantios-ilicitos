@@ -225,7 +225,7 @@ if len(_sem_coord):
     logger.warning(f"{len(_sem_coord)} ocorrências sem coordenada (registradas em sem_coordenada.csv).")
 df_mapa = df_mapa.dropna(subset=['latitude', 'longitude']).copy()
 np.random.seed(42)  # dispersão reproduzível entre execuções
-_amp = np.where(pd.to_numeric(df_mapa['lat_bairro'], errors='coerce').notna(), 0.0015, 0.012)  # ~170 m em bairro, ~1,3 km em município
+_amp = np.where(pd.to_numeric(df_mapa['lat_bairro'], errors='coerce').notna(), 0.0015, 0.004)  # ~170 m em bairro, ~1,3 km em município
 df_mapa['latitude'] += np.random.uniform(-1, 1, len(df_mapa)) * _amp
 df_mapa['longitude'] += np.random.uniform(-1, 1, len(df_mapa)) * _amp
 
@@ -312,7 +312,7 @@ for index, row in df_mapa.iterrows():
     # ---------------------------------------------------------------------------------
     texto_auditoria_indigena = f"{local_base} {titulo} {resumo} {str(row.get('localidade onde foi encontrado o plantio', ''))}".lower()
 
-    if any(termo in texto_auditoria_indigena for termo in ['guamá', 'indígena', 'indigena', 'funai', 'aldeia', 'tiarg']):
+    if any(termo in texto_auditoria_indigena for termo in ['guamá', 'indígena', 'indigena', 'funai', 'tiarg']):
         alerta_indigena = f"<div style='background: #ffe6e6; color: #721c24; padding: 10px; margin-bottom: 12px; border-left: 5px solid #8b0000; font-family: Arial; font-size: 11px; display: flex; align-items: center;'><img src='logo_funai.png' style='width: 45px; height: 45px; margin-right: 12px; background: white; padding: 2px; border-radius: 50%; border: 1px solid #8b0000;'><div><b style='font-size: 12px;'>ALERTA DE JURISDIÇÃO: TERRITÓRIO ORIGINÁRIO</b><br>Operação estatal em Terra Indígena demarcada ou área de amortecimento. A assimetria institucional é crítica.</div></div>"
     else:
         alerta_indigena = ""
