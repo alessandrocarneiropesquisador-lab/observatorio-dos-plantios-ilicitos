@@ -62,4 +62,21 @@ O repositório foi arquitetado seguindo padrões estritos de governança de dado
 Fusão Programática em Memória: Os arquivos originais de dados brutos (dados_antigos.csv e dados_novos.csv) permanecem intactos. A conciliação de colunas, limpeza de duplicadas e padronização textual ocorrem estritamente na memória do computador durante a execução do script.
 
 Filtro de Arquivos Pesados: O arquivo .gitignore está configurado para omitir o upload das malhas geográficas gigantescas (.geojson), mantendo o repositório leve, rápido e focado no código-fonte e na inteligência cartográfica.
-     
+
+## 📊 Dashboard estatístico
+
+O `dashboard.html` é atualizado por `gerador_dashboard.py`, que lê as mesmas bases do Atlas, monta a lista de eventos com quantidade de pés, calcula a estatística descritiva e inferencial e regrava só o bloco de dados da página.
+
+```
+python gerador_mapa.py        # regenera o Atlas (index.html)
+python gerador_dashboard.py   # regenera os dados do dashboard (dashboard.html)
+```
+
+Arquivos de apoio, todos editáveis em planilha:
+
+- `eventos_repetidos.csv`: mesmo fato noticiado por dois veículos. Diz qual notícia sai e qual fica (regra: fica a de data mais antiga). Vale para o Atlas e para o dashboard.
+- `ajustes_dashboard.csv`: registros que entram no dashboard por decisão manual, com a quantidade de pés e o motivo.
+- `eventos_dashboard.csv`: saída de auditoria do dashboard, um registro por linha, dizendo se virou evento e por qual regra.
+- `pontos_repetidos.csv`: saída de auditoria do Atlas, com os pontos retirados por repetição da mesma notícia.
+
+As regras de leitura da quantidade de pés, da UF e do ano estão no cabeçalho de `gerador_dashboard.py`. Dependências: pandas, numpy e scipy.
