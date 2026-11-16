@@ -346,9 +346,7 @@ elementos_interface = f"""
         .titulo-link:hover {{ color: #1b5e20; border-bottom-color: #1b5e20; }}
         .titulo-seta {{ font-size: 11px; opacity: .55; }}
         .titulo-link:hover .titulo-seta {{ opacity: 1; }}
-        .rosa-ventos {{ cursor: grab; user-select: none; touch-action: none; }}
-        .rosa-ventos:hover {{ box-shadow: 0 4px 14px rgba(0,0,0,0.35); }}
-        .rosa-ventos.arrastando {{ cursor: grabbing; opacity: .85; }}
+        .rosa-ventos {{ user-select: none; }}
         .map-title {{
             position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 1000;
             font-family: Arial, sans-serif; font-size: 13px; font-weight: 900; background: rgba(255, 255, 255, 0.98);
@@ -416,7 +414,7 @@ elementos_interface = f"""
         <img src="nevidh_logo.png" alt="NEVIDH" class="logo-nevidh">
     </div>
     
-    <div class="rosa-ventos" id="rosaVentos" title="Clique para reenquadrar o Brasil · arraste para reposicionar">
+    <div class="rosa-ventos" id="rosaVentos" title="Clique para reenquadrar o Brasil">
         <svg viewBox="0 0 120 120" width="62" height="62" aria-label="Rosa dos ventos">
             <defs>
                 <linearGradient id="agN" x1="0" y1="0" x2="0" y2="1">
@@ -451,7 +449,7 @@ elementos_interface = f"""
     <div class="credits-box">
         <b>Coordenação:</b> Prof. Dr. Paulo Fraga<br>
         <b>Desenvolvimento:</b> Me. Alessandro Carneiro<br>
-        <b>Dados:</b> Maria Alice Vallo<br>
+        <b>Dados:</b> Me. Alessandro Carneiro e Maria Alice Vallo<br>
         <b>Parceiro:</b> Canabis Monitor<br>
         <hr style="margin:4px 0; border:0; border-top:1px solid #1a1a1a;">
         <div style="text-align:center; font-weight:900;">NEVIDH - UFJF 2026</div>
@@ -512,25 +510,8 @@ trava_centro_js = f"""
         }}
         var rosa = document.getElementById('rosaVentos');
         if (rosa) {{
-            var arrastando = false, moveu = false, ox = 0, oy = 0;
-            rosa.addEventListener('pointerdown', function(ev) {{
-                arrastando = true; moveu = false;
-                var cx = rosa.getBoundingClientRect();
-                ox = ev.clientX - cx.left; oy = ev.clientY - cx.top;
-                rosa.setPointerCapture(ev.pointerId); rosa.classList.add('arrastando');
-                ev.preventDefault(); ev.stopPropagation();
-            }});
-            rosa.addEventListener('pointermove', function(ev) {{
-                if (!arrastando) return;
-                moveu = true;
-                rosa.style.left = (ev.clientX - ox) + 'px';
-                rosa.style.top = (ev.clientY - oy) + 'px';
-                rosa.style.right = 'auto';
-            }});
-            rosa.addEventListener('pointerup', function(ev) {{
-                arrastando = false; rosa.classList.remove('arrastando');
-                if (!moveu) {{ map_instance.setView([-14.235, -51.925], 4); }}
-            }});
+            rosa.style.cursor = 'pointer';
+            rosa.addEventListener('click', function() {{ map_instance.setView([-14.235, -51.925], 4); }});
         }}
     }});
 </script>
