@@ -376,7 +376,7 @@ elementos_interface = f"""
         }}
         .credits-box:hover {{ opacity: 0.10; }}
         .leaf-btn {{
-            position: fixed; bottom: 78px; left: 20px; z-index: 1000; display: block;
+            position: fixed; top: 92px; left: 14px; z-index: 1000; display: block;
             width: 64px; height: 64px; padding: 5px; box-sizing: content-box;
             background: rgba(255,255,255,0.85); border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             text-decoration: none; transition: transform .2s ease, box-shadow .2s ease;
@@ -408,7 +408,7 @@ elementos_interface = f"""
             
             .credits-box {{ bottom: 5px; right: 5px; width: 110px; padding: 4px; font-size: 6px; line-height: 1.1; }}
             
-            .leaf-btn {{ bottom: 44px; left: 5px; width: 40px; height: 40px; padding: 3px; }}
+            .leaf-btn {{ top: 70px; left: 5px; width: 40px; height: 40px; padding: 3px; }}
             .leaf-btn .leaf-label {{ font-size: 11px; }}
             .leaflet-control-zoom a {{ width: 20px !important; height: 20px !important; line-height: 20px !important; font-size: 12px !important; }}
             .leaflet-control-zoom {{ margin-top: 5px !important; margin-left: 5px !important; }}
