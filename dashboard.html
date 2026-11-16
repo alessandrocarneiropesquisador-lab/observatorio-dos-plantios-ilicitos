@@ -19,15 +19,19 @@
   .kpi { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
   .kpi .v { font-size:20px; font-weight:900; color:var(--acc); }
   .kpi .l { font-size:11px; color:var(--mut); margin-top:2px; }
-  main { padding:8px 16px 32px; display:grid; gap:16px; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  main { padding:8px 16px 32px; display:grid; gap:16px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .card { display:flex; flex-direction:column; }
+  .card .leia { margin-top:auto; }
+  #box { display:block; width:100%; height:auto; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; min-width:0; }
   .card.wide { grid-column: 1 / -1; }
   .card h2 { font-size:15px; margin:0 0 4px; }
   .card .sub { font-size:12px; color:var(--mut); margin:0 0 10px; line-height:1.4; }
   .ctrl { font-size:12px; color:var(--mut); margin-bottom:8px; }
   .ctrl select { font-size:12px; padding:3px 6px; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:4px; }
-  .chart-box { position:relative; width:100%; height:340px; }
-  .tall { height: 620px; }
+  .chart-box { position:relative; width:100%; height:400px; }
+  .tall { height: 640px; }
   .leia { margin-top:10px; font-size:12px; line-height:1.55; background:var(--soft); border-radius:6px; padding:8px 10px; }
   .leia b { color:var(--leaf); }
   .leia p { margin:0 0 6px; }
@@ -82,7 +86,7 @@
 <section class="card">
   <h2>Distribuição por UF (boxplot de pés por ocorrência)</h2>
   <p class="sub">Escala logarítmica. Caixa = Q1 a Q3, linha = mediana, bigodes = mínimo e máximo. Só UFs com pelo menos 3 ocorrências.</p>
-  <div class="scroll"><svg id="box" width="100%"></svg></div>
+  <svg id="box"></svg>
   <div class="leia" id="leia-box"></div>
 </section>
 
@@ -111,6 +115,18 @@
   <p class="sub">Pés por ocorrência. CV = desvio padrão dividido pela média.</p>
   <div class="scroll"><table id="tab"></table></div>
   <div class="leia" id="leia-tab"></div>
+</section>
+
+<section class="card wide">
+  <h2>Créditos</h2>
+  <p class="sub" style="margin:0; font-size:12px; line-height:1.7;">
+    <b>Coordenação:</b> Prof. Dr. Paulo Fraga<br>
+    <b>Análise estatística e desenvolvimento:</b> Me. Alessandro Carneiro<br>
+    <b>Dados:</b> Me. Alessandro Carneiro e Maria Alice Vallo<br>
+    <b>Parceiro:</b> Canabis Monitor<br>
+    <b>População:</b> IBGE, Censo Demográfico 2022<br>
+    NEVIDH - UFJF 2026
+  </p>
 </section>
 
 <section class="card wide">
@@ -180,7 +196,7 @@ document.getElementById("escala").addEventListener("change", e => {
   const nAntes = D.eventos.filter(e => e.ano <= 2024).length;
   document.getElementById("leia-linhas").innerHTML = `
     <p><b>Como ler:</b> cada linha soma, por ano, os pés erradicados nas ocorrências noticiadas de uma região. Na escala linear, lê-se o volume; na logarítmica, cada marca é 10 vezes a anterior e as regiões ficam comparáveis em ritmo de variação, não em tamanho.</p>
-    <p><b>O que diz:</b> o ${r1} concentra ${pct(v1/totalPes*100)} de todos os pés e lidera a série em todos os anos com registro. O maior valor anual é ${nf(pico.soma)} pés em ${anoTxt(pico.ano)}${pico.ano===2026?" (ano parcial)":""}. A subida forte de 2024 a 2026 coincide com um salto no número de registros (${nAntes} ocorrências até 2024, ${n25} em 2025 e ${n26} em 2026): parte do crescimento é maior cobertura e coleta, não só mais erradicação. As demais regiões ficam abaixo de ${nf(ordem[1][1])} pés acumulados (${ordem[1][0]}).</p>`;
+    <p><b>Interpretação:</b> o ${r1} concentra ${pct(v1/totalPes*100)} de todos os pés e lidera a série em todos os anos com registro. O maior valor anual é ${nf(pico.soma)} pés em ${anoTxt(pico.ano)}${pico.ano===2026?" (ano parcial)":""}. A subida forte de 2024 a 2026 coincide com um salto no número de registros (${nAntes} ocorrências até 2024, ${n25} em 2025 e ${n26} em 2026): parte do crescimento é maior cobertura e coleta, não só mais erradicação. As demais regiões ficam abaixo de ${nf(ordem[1][1])} pés acumulados (${ordem[1][0]}).</p>`;
 })();
 
 // ---------- barras ----------
@@ -212,7 +228,7 @@ document.getElementById("metrica").addEventListener("change", e => {
   const porOcor = [...ufsAll].sort((a,b)=> b.ocor100 - a.ocor100).slice(0, 3);
   document.getElementById("leia-barras").innerHTML = `
     <p><b>Como ler:</b> a barra divide o total de pés erradicados da UF pela sua população residente (IBGE, Censo 2022) e multiplica por 100 mil. É uma medida de intensidade relativa: corrige o fato de UFs populosas terem mais de tudo. A segunda métrica faz o mesmo com o número de ocorrências.</p>
-    <p><b>O que diz:</b> ${top.map(u => `${u.uf} (${nf(u.pes100)} pés/100 mil hab., ${u.n} ocorrências)`).join(", ")} lideram. Em ocorrências por habitante o ranking muda: ${porOcor.map(u => `${u.uf} (${nf(u.ocor100,2)})`).join(", ")}, porque UFs pouco populosas sobem com poucos casos. ${zero.length} UFs não têm ocorrência na base (${zero.join(", ")}): isso é ausência de registro, não ausência de plantio.</p>`;
+    <p><b>Interpretação:</b> ${top.map(u => `${u.uf} (${nf(u.pes100)} pés/100 mil hab., ${u.n} ocorrências)`).join(", ")} lideram. Em ocorrências por habitante o ranking muda: ${porOcor.map(u => `${u.uf} (${nf(u.ocor100,2)})`).join(", ")}, porque UFs pouco populosas sobem com poucos casos. ${zero.length} UFs não têm ocorrência na base (${zero.join(", ")}): isso é ausência de registro, não ausência de plantio.</p>`;
 })();
 
 // ---------- boxplot (SVG) ----------
@@ -226,7 +242,7 @@ document.getElementById("metrica").addEventListener("change", e => {
   const X = v => left + (lg(v) - lo) / (hi - lo) * (W - left - right);
   const svg = document.getElementById("box");
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  svg.setAttribute("height", H);
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
   let s = "";
   for (let p = Math.ceil(lo); p <= Math.floor(hi); p++) {
     const x = left + (p - lo) / (hi - lo) * (W - left - right);
@@ -251,7 +267,7 @@ document.getElementById("metrica").addEventListener("change", e => {
   const grandes = items.filter(d => d.mediana >= 10000).map(d => d.chave);
   document.getElementById("leia-box").innerHTML = `
     <p><b>Como ler:</b> cada linha é uma UF. A caixa vai do primeiro ao terceiro quartil, ou seja, contém a metade central das ocorrências; a linha vermelha é a mediana (ocorrência típica); os bigodes vão da menor à maior ocorrência. O eixo é logarítmico: cada marca vale 10 vezes a anterior, por isso uma caixa larga indica ocorrências de tamanhos muito diferentes.</p>
-    <p><b>O que diz:</b> ${maior.chave} tem a maior mediana (${nf(maior.mediana)} pés por ocorrência). ${amplo.chave} tem a maior amplitude: do mínimo de ${nf(amplo.min)} ao máximo de ${nf(amplo.max)} pés, uma razão de ${nf(amplo.max/amplo.min)} vezes. Há dois perfis claros: UFs com mediana acima de 10 mil pés (${grandes.join(", ")}) e UFs com mediana abaixo de mil (${pequenos.join(", ")}), onde predominam estufas e plantios domésticos. Isso é tanto diferença real de modalidade quanto diferença de base de coleta.</p>`;
+    <p><b>Interpretação:</b> ${maior.chave} tem a maior mediana (${nf(maior.mediana)} pés por ocorrência). ${amplo.chave} tem a maior amplitude: do mínimo de ${nf(amplo.min)} ao máximo de ${nf(amplo.max)} pés, uma razão de ${nf(amplo.max/amplo.min)} vezes. Há dois perfis claros: UFs com mediana acima de 10 mil pés (${grandes.join(", ")}) e UFs com mediana abaixo de mil (${pequenos.join(", ")}), onde predominam estufas e plantios domésticos. Isso é tanto diferença real de modalidade quanto diferença de base de coleta.</p>`;
 })();
 
 // ---------- dispersao + regressao (ano x log10 pes) ----------
@@ -280,7 +296,7 @@ new Chart(document.getElementById("dispersao"), {
   const sig = Object.entries(tend).filter(([,t]) => t.p < 0.05).map(([r]) => r);
   document.getElementById("leia-disp").innerHTML = `
     <p><b>Como ler:</b> cada ponto é uma ocorrência; o eixo vertical é o logaritmo dos pés (3 = mil, 4 = 10 mil, 5 = 100 mil), o que evita que as maiores operações escondam as demais. A reta é a regressão linear de log10(pés) sobre o ano: a inclinação é a variação média anual do tamanho de uma ocorrência; R² é a fração da variação explicada pelo ano; p é a chance de uma inclinação assim surgir sem tendência real.</p>
-    <p><b>O que diz:</b> inclinação ${nf(reg.slope,3)} por ano, o que equivale a ${taxa>=0?"+":""}${nf(taxa)}% ao ano no tamanho típico das ocorrências entre 2017 e 2026 (n = ${reg.n}). R² = ${nf(reg.r2,3)}: o ano explica só ${pct(reg.r2*100)} da variação, ou seja, o tamanho de uma ocorrência depende muito mais de onde ela ocorre do que de quando. p = ${pv(reg.p)}, mas as ocorrências não são independentes (mesma operação, mesma UF, mesma base de coleta), então esse p é otimista. ${sig.length ? "Por região, a tendência é significativa a 5% em: " + sig.join(", ") + "." : "Separando por região, nenhuma tendência é significativa a 5%."} Leitura prudente: há um sinal fraco de ocorrências maiores ao longo do tempo, não uma prova.</p>`;
+    <p><b>Interpretação:</b> inclinação ${nf(reg.slope,3)} por ano, o que equivale a ${taxa>=0?"+":""}${nf(taxa)}% ao ano no tamanho típico das ocorrências entre 2017 e 2026 (n = ${reg.n}). R² = ${nf(reg.r2,3)}: o ano explica só ${pct(reg.r2*100)} da variação, ou seja, o tamanho de uma ocorrência depende muito mais de onde ela ocorre do que de quando. p = ${pv(reg.p)}, mas as ocorrências não são independentes (mesma operação, mesma UF, mesma base de coleta), então esse p é otimista. ${sig.length ? "Por região, a tendência é significativa a 5% em: " + sig.join(", ") + "." : "Separando por região, nenhuma tendência é significativa a 5%."} Leitura prudente: há um sinal fraco de ocorrências maiores ao longo do tempo, não uma prova.</p>`;
 })();
 
 // ---------- populacao x pes ----------
@@ -306,7 +322,7 @@ new Chart(document.getElementById("popx"), {
   const acima = res.slice(0,2).map(r => r.uf), abaixo = res.slice(-2).map(r => r.uf);
   document.getElementById("leia-pop").innerHTML = `
     <p><b>Como ler:</b> cada ponto é uma UF; os dois eixos estão em logaritmo. A inclinação da reta é uma elasticidade: quanto por cento os pés erradicados aumentam quando a população aumenta 1%. O r de Pearson mede a força da associação linear entre os dois logaritmos (de −1 a 1).</p>
-    <p><b>O que diz:</b> r = ${nf(p.r,3)} com p = ${pv(p.p)} (n = ${p.n} UFs): associação positiva fraca e não significativa a 5%. Inclinação ${nf(ols2.slope,2)}: cada 1% a mais de população associa-se a cerca de ${nf(ols2.slope,2)}% a mais de pés, com R² = ${nf(ols2.r2,2)}. Ou seja, o tamanho da população explica pouco a erradicação: ${acima.join(" e ")} ficam muito acima da reta (erradicam muito mais do que o esperado pelo tamanho) e ${abaixo.join(" e ")} muito abaixo. A geografia da erradicação segue as zonas de cultivo, não a demografia.</p>`;
+    <p><b>Interpretação:</b> r = ${nf(p.r,3)} com p = ${pv(p.p)} (n = ${p.n} UFs): associação positiva fraca e não significativa a 5%. Inclinação ${nf(ols2.slope,2)}: cada 1% a mais de população associa-se a cerca de ${nf(ols2.slope,2)}% a mais de pés, com R² = ${nf(ols2.r2,2)}. Ou seja, o tamanho da população explica pouco a erradicação: ${acima.join(" e ")} ficam muito acima da reta (erradicam muito mais do que o esperado pelo tamanho) e ${abaixo.join(" e ")} muito abaixo. A geografia da erradicação segue as zonas de cultivo, não a demografia.</p>`;
 })();
 
 // ---------- inferencia (texto) ----------
@@ -323,35 +339,35 @@ new Chart(document.getElementById("popx"), {
   h += "</ul>";
   const regs = Object.entries(tend);
   const maisForte = regs.sort((a,b)=>a[1].p-b[1].p)[0];
-  h += `<p><b>O que diz:</b> nenhuma região tem tendência significativa a 5%. A mais próxima é ${maisForte[0]} (p = ${pv(maisForte[1].p)}), mas com R² baixo: o ano explica pouco. Os R² pequenos significam que, dentro de cada região, ocorrências grandes e pequenas convivem em todos os anos.</p>`;
+  h += `<p><b>Interpretação:</b> nenhuma região tem tendência significativa a 5%. A mais próxima é ${maisForte[0]} (p = ${pv(maisForte[1].p)}), mas com R² baixo: o ano explica pouco. Os R² pequenos significam que, dentro de cada região, ocorrências grandes e pequenas convivem em todos os anos.</p>`;
 
   const soma = inf.tendencia_log10_soma_anual_2017_2025;
   if (soma) {
     h += `<h3>2. Tendência do total anual (log10 da soma de pés sobre o ano, 2017–2025)</h3>
       <p><b>O que testa:</b> se o volume anual total erradicado cresce, usando um valor por ano (o que evita a dependência entre ocorrências). 2026 fica fora por ser parcial.</p>
       <p class="num">inclinação = ${nf(soma.slope,3)} (${nf((Math.pow(10,soma.slope)-1)*100)}% ao ano) · R² = ${nf(soma.r2,3)} · p = ${pv(soma.p)} · n = ${soma.n} anos</p>
-      <p><b>O que diz:</b> com só ${soma.n} pontos e a queda de 2023, a tendência de alta ${soma.p < 0.05 ? "é" : "não é"} significativa (p = ${pv(soma.p)}). O crescimento visto no gráfico de linhas depende muito de 2024–2026, anos com mais registros na base.</p>`;
+      <p><b>Interpretação:</b> com só ${soma.n} pontos e a queda de 2023, a tendência de alta ${soma.p < 0.05 ? "é" : "não é"} significativa (p = ${pv(soma.p)}). O crescimento visto no gráfico de linhas depende muito de 2024–2026, anos com mais registros na base.</p>`;
   }
   const w1 = inf.welch_log10_nordeste_vs_sudeste_sul;
   if (w1) {
     h += `<h3>3. Teste t de Welch: Nordeste x Sudeste+Sul (log10 dos pés por ocorrência)</h3>
       <p><b>O que testa:</b> se a ocorrência típica do Nordeste é maior que a do Sudeste e Sul. O teste de Welch não exige variâncias iguais. Usa-se o logaritmo porque as quantidades são muito assimétricas.</p>
       <p class="num">médias em log10: ${nf(w1.media1,2)} (≈ ${nf(Math.pow(10,w1.media1))} pés) x ${nf(w1.media2,2)} (≈ ${nf(Math.pow(10,w1.media2))} pés) · t = ${nf(w1.t,2)} · gl = ${nf(w1.df,1)} · p = ${pv(w1.p)} · n = ${w1.n1} x ${w1.n2}</p>
-      <p><b>O que diz:</b> a diferença é grande e significativa: a ocorrência típica do Nordeste é cerca de ${nf(Math.pow(10, w1.media1 - w1.media2))} vezes a do Sudeste e Sul. Mas as duas regiões vêm de bases diferentes (operações rurais de grande porte x estufas urbanas de busca complementar), então o teste mede ao mesmo tempo diferença regional e diferença de modalidade de cultivo e de coleta.</p>`;
+      <p><b>Interpretação:</b> a diferença é grande e significativa: a ocorrência típica do Nordeste é cerca de ${nf(Math.pow(10, w1.media1 - w1.media2))} vezes a do Sudeste e Sul. Mas as duas regiões vêm de bases diferentes (operações rurais de grande porte x estufas urbanas de busca complementar), então o teste mede ao mesmo tempo diferença regional e diferença de modalidade de cultivo e de coleta.</p>`;
   }
   const w2 = inf.welch_log10_nordeste_vs_norte;
   if (w2) {
     h += `<h3>4. Teste t de Welch: Nordeste x Norte (log10 dos pés por ocorrência)</h3>
       <p><b>O que testa:</b> o mesmo, entre as duas regiões que vêm da mesma base de coleta, o que torna a comparação mais limpa.</p>
       <p class="num">médias em log10: ${nf(w2.media1,2)} (≈ ${nf(Math.pow(10,w2.media1))} pés) x ${nf(w2.media2,2)} (≈ ${nf(Math.pow(10,w2.media2))} pés) · t = ${nf(w2.t,2)} · gl = ${nf(w2.df,1)} · p = ${pv(w2.p)} · n = ${w2.n1} x ${w2.n2}</p>
-      <p><b>O que diz:</b> ${w2.p < 0.05 ? "a diferença é significativa a 5%" : "a diferença não é significativa a 5%"}: a ocorrência típica do Nordeste é cerca de ${nf(Math.pow(10, w2.media1 - w2.media2),1)} vezes a do Norte. Como as bases são as mesmas, este é o melhor indício de que a erradicação no Polígono da Maconha (sertão de PE e norte da BA) opera em escala maior que na Amazônia.</p>`;
+      <p><b>Interpretação:</b> ${w2.p < 0.05 ? "a diferença é significativa a 5%" : "a diferença não é significativa a 5%"}: a ocorrência típica do Nordeste é cerca de ${nf(Math.pow(10, w2.media1 - w2.media2),1)} vezes a do Norte. Como as bases são as mesmas, este é o melhor indício de que a erradicação no Polígono da Maconha (sertão de PE e norte da BA) opera em escala maior que na Amazônia.</p>`;
   }
   const p = inf.pearson_log_pop_vs_log_pes_uf;
   if (p) {
     h += `<h3>5. Correlação de Pearson: população x pés erradicados por UF (log-log)</h3>
       <p><b>O que testa:</b> se UFs mais populosas erradicam mais pés. Se a erradicação fosse proporcional à população, r seria alto e a inclinação próxima de 1.</p>
       <p class="num">r = ${nf(p.r,3)} · p = ${pv(p.p)} · n = ${p.n} UFs</p>
-      <p><b>O que diz:</b> associação fraca e não significativa. A erradicação não acompanha a demografia; ela se concentra em zonas de cultivo específicas (sertão nordestino, ilhas do São Francisco, Amazônia), independentemente do tamanho da UF.</p>`;
+      <p><b>Interpretação:</b> associação fraca e não significativa. A erradicação não acompanha a demografia; ela se concentra em zonas de cultivo específicas (sertão nordestino, ilhas do São Francisco, Amazônia), independentemente do tamanho da UF.</p>`;
   }
   h += `<h3>Síntese</h3><p>A única diferença robusta é espacial: o Nordeste (e, dentro dele, Pernambuco e Bahia) tem ocorrências muito maiores que as demais regiões, mesmo controlando por população. As tendências temporais são fracas e dependem da cobertura recente. Para afirmar crescimento real, seria preciso uma base com cobertura homogênea no tempo (por exemplo, registros administrativos das polícias) ou um modelo com efeito de UF e de fonte.</p>`;
   document.getElementById("inf").innerHTML = h;
@@ -376,7 +392,7 @@ new Chart(document.getElementById("popx"), {
   const acima1 = comCv.filter(d => d.cv > 1).length;
   document.getElementById("leia-tab").innerHTML = `
     <p><b>Como ler:</b> média e desvio padrão (DP) descrevem o centro e a dispersão, mas são puxados por valores extremos. O coeficiente de variação (CV = DP/média) compara a dispersão entre UFs de escalas diferentes: CV acima de 1 significa que o DP supera a média, ou seja, a distribuição é muito assimétrica e a mediana descreve melhor a ocorrência típica. Q1 e Q3 delimitam a metade central.</p>
-    <p><b>O que diz:</b> ${acima1} das ${comCv.length} UFs com DP calculável têm CV maior que 1. O caso mais extremo é ${maisCv.uf} (CV = ${nf(maisCv.cv,2)}): média de ${nf(maisCv.media)} contra mediana de ${nf(maisCv.mediana)}, sinal de que uma ou poucas operações grandes puxam a média. Para comparar UFs, prefira a mediana e os quartis; para o volume total, a soma.</p>`;
+    <p><b>Interpretação:</b> ${acima1} das ${comCv.length} UFs com DP calculável têm CV maior que 1. O caso mais extremo é ${maisCv.uf} (CV = ${nf(maisCv.cv,2)}): média de ${nf(maisCv.media)} contra mediana de ${nf(maisCv.mediana)}, sinal de que uma ou poucas operações grandes puxam a média. Para comparar UFs, prefira a mediana e os quartis; para o volume total, a soma.</p>`;
 })();
 </script>
 </body>
