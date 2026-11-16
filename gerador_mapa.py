@@ -4,7 +4,7 @@
 """
 =========================================================================================
 OBSERVATÓRIO DOS PLANTIOS ILÍCITOS NO BRASIL
-Pesquisador: Ms. Alessandro Carneiro | NEVIDH - UFJF 2026
+Pesquisador: Me. Alessandro Carneiro | NEVIDH - UFJF 2026
 Objetivo: Mapeamento Sociológico e Cartografia de Precisão
 =========================================================================================
 """
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 ARQ_ANTIGO = 'dados_antigos.csv'
 ARQ_NOVO = 'dados_novos.csv'
+ARQ_COMPLEMENTAR = 'dados_complementares.csv'  # opcional: busca complementar dirigida, com bairro geocodificado
 
 if not os.path.exists(ARQ_ANTIGO) or not os.path.exists(ARQ_NOVO):
     logger.error(f"FATAL: Cadeia de custódia quebrada. Exijo '{ARQ_ANTIGO}' e '{ARQ_NOVO}' na mesma pasta.")
@@ -47,7 +48,7 @@ CORRECOES_MUNICIPIOS = {
     "cabobró": "cabrobó", "conceição do lago açu": "conceição do lago-açu",
     "muquém do são francisco": "muquém de são francisco", "droga veio belém": "belém",
     "com destino para fortaleza": "fortaleza", "região do patrocínio": "patrocínio",
-    "alto turiaçu": "turiaçu", "caraúba": "caraúbas",
+    "alto turiaçu": "turiaçu", "caraúba": "caraúbas", "são joão del-rei": "são joão del rei",
     "ibimirim e serra talhada": "ibimirim", "e manaíra": "manaíra"
 }
 
@@ -90,6 +91,16 @@ df_base = df_base.drop_duplicates(
 )
 
 contagem_depois = len(df_base)
+
+# Base complementar (opcional): entra depois da auditoria de duplicatas e mantém a marca de origem
+TEM_COMPLEMENTAR = os.path.exists(ARQ_COMPLEMENTAR)
+if TEM_COMPLEMENTAR:
+    df_c = pd.read_csv(ARQ_COMPLEMENTAR, dtype=str)
+    df_c.columns = df_c.columns.str.strip()
+    df_base = pd.concat([df_base, df_c], ignore_index=True)
+    logger.info(f"Base complementar acoplada: {len(df_c)} registros de '{ARQ_COMPLEMENTAR}'.")
+for _col in ['origem_coleta', 'bairro', 'lat_bairro', 'lon_bairro', 'tipo_cultivo', 'precisao_local']:
+    if _col not in df_base.columns: df_base[_col] = np.nan
 percentual_removido = ((contagem_antes - contagem_depois) / contagem_antes) * 100
 logger.info(f"Auditoria concluída. {contagem_antes - contagem_depois} duplicatas reais eliminadas ({percentual_removido:.1f}% da base). Matriz saneada com {contagem_depois} ocorrências únicas.")
 def rotina_limpeza(texto):
@@ -105,6 +116,9 @@ def extrair_lista(t):
 
 col_alvo = next((c for c in df_base.columns if 'municipio' in c.lower() or 'município' in c.lower()), None)
 df_base['municipio_lista'] = df_base[col_alvo].apply(rotina_limpeza).apply(extrair_lista)
+# Registros complementares já trazem um município único e limpo: não passam pela rotina de limpeza textual
+_comp = df_base['origem_coleta'].notna()
+df_base.loc[_comp, 'municipio_lista'] = df_base.loc[_comp, col_alvo].apply(lambda x: [str(x).strip()])
 df_base['municipios_envolvidos'] = df_base['municipio_lista'].apply(lambda x: " | ".join([str(c).upper() for c in x]))
 df_base['num_cidades_operacao'] = df_base['municipio_lista'].apply(len)
 
@@ -147,9 +161,16 @@ df_mapa = pd.merge(
 df_mapa['latitude'] = df_mapa['lat_especial'].combine_first(df_mapa['latitude'])
 df_mapa['longitude'] = df_mapa['lon_especial'].combine_first(df_mapa['longitude'])
 df_mapa['sigla_uf'] = df_mapa['uf_especial'].combine_first(df_mapa['sigla_uf'])
+# Precisão de bairro: quando o registro traz coordenada de bairro, ela prevalece sobre o centro do município
+df_mapa['latitude'] = pd.to_numeric(df_mapa['lat_bairro'], errors='coerce').combine_first(df_mapa['latitude'])
+df_mapa['longitude'] = pd.to_numeric(df_mapa['lon_bairro'], errors='coerce').combine_first(df_mapa['longitude'])
+_orfaos_comp = df_mapa[df_mapa['origem_coleta'].notna() & df_mapa['latitude'].isna()]
+if len(_orfaos_comp): logger.warning(f"Complementares sem coordenada: {_orfaos_comp[col_alvo].tolist()}")
 df_mapa = df_mapa.dropna(subset=['latitude', 'longitude']).copy()
-df_mapa['latitude'] += np.random.uniform(-0.012, 0.012, len(df_mapa))
-df_mapa['longitude'] += np.random.uniform(-0.012, 0.012, len(df_mapa))
+np.random.seed(42)  # dispersão reproduzível entre execuções
+_amp = np.where(pd.to_numeric(df_mapa['lat_bairro'], errors='coerce').notna(), 0.0015, 0.012)  # ~170 m em bairro, ~1,3 km em município
+df_mapa['latitude'] += np.random.uniform(-1, 1, len(df_mapa)) * _amp
+df_mapa['longitude'] += np.random.uniform(-1, 1, len(df_mapa)) * _amp
 
 # =========================================================================================
 # 3. FUNDAÇÃO CARTOGRÁFICA, MÁSCARA DE ISOLAMENTO E POLÍGONOS
@@ -160,11 +181,11 @@ mapa = folium.Map(
 )
 MousePosition(
     position='bottomleft',
-    separator='  |  Lat: ',
+    separator='  |  Long: ',
     empty_string='Fora do Perímetro',
     lng_first=False,
     num_digits=6,
-    prefix='Long: '
+    prefix='Lat: '
 ).add_to(mapa)
 mapa.get_root().html.add_child(folium.Element("<style>.leaflet-marker-pane { z-index: 600 !important; } .leaflet-tooltip-pane { z-index: 650 !important; } .leaflet-popup-pane { z-index: 700 !important; }</style>"))
 
@@ -206,6 +227,17 @@ for index, row in df_mapa.iterrows():
     local_exato = f"{local_base} - {str(row.get('sigla_uf', '??'))}" 
     data_bruta = str(row.get('data', 'Sem data')).strip()
     data_op = f"{data_bruta.split('/')[1]}/{data_bruta.split('/')[0]}/{data_bruta.split('/')[2]}" if '/' in data_bruta and len(data_bruta.split('/')) == 3 and data_bruta.split('/')[0].isdigit() and int(data_bruta.split('/')[0]) <= 12 else data_bruta
+    eh_complementar = pd.notna(row.get('origem_coleta'))
+    if eh_complementar: data_op = data_bruta  # complementares já estão em dia/mês/ano
+    bairro = row.get('bairro')
+    if pd.notna(bairro) and str(bairro).strip(): local_exato = f"{str(bairro).strip()}, {local_exato}"
+    tipo_cultivo = str(row.get('tipo_cultivo', '')) if pd.notna(row.get('tipo_cultivo')) else ''
+    alerta_extra = ""
+    if 'autorização judicial' in tipo_cultivo:
+        alerta_extra += "<div style='background: #e8f5e9; color: #1b5e20; padding: 10px; margin-bottom: 12px; border-left: 5px solid #2e7d32; font-family: Arial; font-size: 11px;'><b style='font-size: 12px;'>⚖️ CULTIVO COM AUTORIZAÇÃO JUDICIAL</b><br>Caso de fronteira entre o plantio lícito e a ação repressiva. Não entra na contagem de erradicação.</div>"
+    if eh_complementar:
+        _prec = 'bairro' if pd.notna(row.get('lat_bairro')) else 'município'
+        alerta_extra += f"<div style='color: #555; font-family: Arial; font-size: 10px; margin-bottom: 8px;'><b>Tipo:</b> {tipo_cultivo} · <b>Precisão:</b> {_prec} · <b>Coleta:</b> busca complementar dirigida</div>"
 
     instituicao = str(row.get('Instituição que efetuou a apreensao', 'Não informada')).replace('nan', 'Não informada')
     qtd = str(row.get('Quantidade de pés encontrados', 'Não especificado')).replace('nan', 'Não especificado')
@@ -237,7 +269,7 @@ for index, row in df_mapa.iterrows():
 
     html_tooltip = f"<div style='font-family: Arial; font-size: 12px; padding: 6px; min-width: 300px; max-width: 450px; white-space: normal; line-height: 1.4; white-space: normal !important; overflow-wrap: break-word; word-break: normal;'><b style='color: #1a1a1a; font-size: 13px; text-transform: uppercase;'>📍 {local_exato}</b><hr style='margin:4px 0;'><span style='color: #555;'>Data: {data_op}</span><br>{tag_fluvial}<span style='color: #1a1a1a;'><b>🌿 Erradicação Reportada:</b> {qtd}</span><br></div>"
     
-    html_popup = f"<div style='font-family: Arial; width: 100%; max-width: 300px; font-size: 12px; line-height: 1.6; color: #333; overflow-wrap: break-word;'><h4 style='color: #1a1a1a; margin-bottom: 8px; font-size: 13px; text-transform: uppercase; font-weight: 900;'>{titulo}</h4>{alerta_simultaneidade}{alerta_indigena}{alerta_fluvial}<div style='border-top: 2px solid #1a1a1a; border-bottom: 1px solid #ddd; padding: 10px 0; margin-bottom: 10px; font-size: 12px;'><div style='margin-bottom: 4px;'>📍 <b>Local:</b> {local_exato}</div><div style='margin-bottom: 4px;'>📅 <b>Data:</b> {data_op}</div><div style='margin-bottom: 4px;'>🚓 <b>Agência:</b> {instituicao}</div><div style='margin-bottom: 4px;'>🌿 <b>Pés Erradicados:</b> {qtd}</div><div style='margin-bottom: 4px;'>📦 <b>Maconha Prensada:</b> {prensado}</div><div style='margin-bottom: 4px;'><img src='pistola.png' style='width: 16px; height: auto; vertical-align: middle; margin-right: 4px; padding-bottom: 2px;'> <b>Armamento:</b> {armas}</div></div><div style='background: #f8f9fa; padding: 12px; margin: 10px 0; border-left: 4px solid #27ae60; max-height: 140px; overflow-y: auto; text-align: justify; font-size: 11px;'>{resumo}</div><a href='{link}' target='_blank' style='display: block; text-align: center; background: #1a1a1a; color: white; padding: 10px; text-decoration: none; font-weight: bold; border-radius: 4px; border: 1px solid #000;'>🔗 ACESSAR FONTE DOCUMENTAL</a></div>"
+    html_popup = f"<div style='font-family: Arial; width: 100%; max-width: 300px; font-size: 12px; line-height: 1.6; color: #333; overflow-wrap: break-word;'><h4 style='color: #1a1a1a; margin-bottom: 8px; font-size: 13px; text-transform: uppercase; font-weight: 900;'>{titulo}</h4>{alerta_extra}{alerta_simultaneidade}{alerta_indigena}{alerta_fluvial}<div style='border-top: 2px solid #1a1a1a; border-bottom: 1px solid #ddd; padding: 10px 0; margin-bottom: 10px; font-size: 12px;'><div style='margin-bottom: 4px;'>📍 <b>Local:</b> {local_exato}</div><div style='margin-bottom: 4px;'>📅 <b>Data:</b> {data_op}</div><div style='margin-bottom: 4px;'>🚓 <b>Agência:</b> {instituicao}</div><div style='margin-bottom: 4px;'>🌿 <b>Pés Erradicados:</b> {qtd}</div><div style='margin-bottom: 4px;'>📦 <b>Maconha Prensada:</b> {prensado}</div><div style='margin-bottom: 4px;'><img src='pistola.png' style='width: 16px; height: auto; vertical-align: middle; margin-right: 4px; padding-bottom: 2px;'> <b>Armamento:</b> {armas}</div></div><div style='background: #f8f9fa; padding: 12px; margin: 10px 0; border-left: 4px solid #27ae60; max-height: 140px; overflow-y: auto; text-align: justify; font-size: 11px;'>{resumo}</div><a href='{link}' target='_blank' style='display: block; text-align: center; background: #1a1a1a; color: white; padding: 10px; text-decoration: none; font-weight: bold; border-radius: 4px; border: 1px solid #000;'>🔗 ACESSAR FONTE DOCUMENTAL</a></div>"
 
     folium.Marker(
         location=[row['latitude'], row['longitude']], 
@@ -337,7 +369,7 @@ elementos_interface = f"""
 
     <div class="credits-box">
         <b>Coordenação:</b> Prof. Dr. Paulo Fraga<br>
-        <b>Desenvolvimento:</b> Ms. Alessandro Carneiro<br>
+        <b>Desenvolvimento:</b> Me. Alessandro Carneiro<br>
         <b>Dados:</b> Maria Alice Vallo<br>
         <b>Parceiro:</b> Canabis Monitor<br>
         <hr style="margin:4px 0; border:0; border-top:1px solid #1a1a1a;">
