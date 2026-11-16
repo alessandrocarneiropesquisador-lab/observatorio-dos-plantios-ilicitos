@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard de erradicação</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#f7f7f5; --card:#ffffff; --ink:#1a1a1a; --mut:#666; --line:#e4e4df; --acc:#8b0000; --leaf:#1b5e20; --soft:#f1f1ec; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#141414; --card:#1e1e1e; --ink:#eaeaea; --mut:#9a9a9a; --line:#333; --acc:#e06666; --leaf:#66bb6a; --soft:#262626; }
+  }
+  :root[data-theme="dark"] { --bg:#141414; --card:#1e1e1e; --ink:#eaeaea; --mut:#9a9a9a; --line:#333; --acc:#e06666; --leaf:#66bb6a; --soft:#262626; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: Arial, Helvetica, sans-serif; }
+  header { padding:20px 16px 8px; }
+  .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  header p { margin:0; color:var(--mut); font-size:13px; line-height:1.5; }
+  .back { font-size:12px; color:var(--leaf); text-decoration:none; border:1px solid var(--leaf); padding:5px 10px; border-radius:4px; white-space:nowrap; }
+  .back:hover { background:var(--leaf); color:#fff; }
+  .kpis { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px; padding:10px 16px 4px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .kpi .v { font-size:20px; font-weight:900; color:var(--acc); }
+  .kpi .l { font-size:11px; color:var(--mut); margin-top:2px; }
+  main { padding:8px 16px 32px; display:grid; gap:16px; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; min-width:0; }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 { font-size:15px; margin:0 0 4px; }
+  .card .sub { font-size:12px; color:var(--mut); margin:0 0 10px; line-height:1.4; }
+  .ctrl { font-size:12px; color:var(--mut); margin-bottom:8px; }
+  .ctrl select { font-size:12px; padding:3px 6px; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:4px; }
+  .chart-box { position:relative; width:100%; height:340px; }
+  .tall { height: 620px; }
+  .leia { margin-top:10px; font-size:12px; line-height:1.55; background:var(--soft); border-radius:6px; padding:8px 10px; }
+  .leia b { color:var(--leaf); }
+  .leia p { margin:0 0 6px; }
+  .leia p:last-child { margin:0; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th, td { text-align:right; padding:5px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  .scroll { overflow-x:auto; }
+  .stat { font-size:12px; line-height:1.6; }
+  .stat h3 { font-size:13px; margin:12px 0 2px; }
+  .stat h3:first-child { margin-top:0; }
+  .stat .num { font-family: Consolas, monospace; font-size:12px; }
+  .stat b { color:var(--acc); }
+  .warn { font-size:12px; color:var(--mut); border-left:3px solid var(--acc); padding:6px 10px; line-height:1.5; }
+  svg text { fill: var(--ink); font-size: 11px; }
+  @media (max-width: 480px) { main { padding:8px 16px 24px; } .chart-box { height:300px; } .tall { height:520px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div>
+      <h1>Dashboard: erradicação de plantios ilícitos de cannabis</h1>
+      <p>Ocorrências noticiadas compiladas pelo Observatório dos Plantios Ilícitos (NEVIDH/UFJF). População: IBGE, Censo Demográfico 2022. Quantidades são pés erradicados estimados, não produção.</p>
+    </div>
+    <a class="back" href="index.html">← Voltar ao Atlas</a>
+  </div>
+</header>
+<div class="kpis" id="kpis"></div>
+<main>
+
+<section class="card wide">
+  <h2>Série histórica de pés erradicados por região</h2>
+  <p class="sub">Soma anual por região. 2026 é parcial (até 16/11).</p>
+  <div class="ctrl">Escala do eixo Y:
+    <select id="escala"><option value="linear">linear</option><option value="logarithmic">logarítmica</option></select>
+  </div>
+  <div class="chart-box"><canvas id="linhas"></canvas></div>
+  <div class="leia" id="leia-linhas"></div>
+</section>
+
+<section class="card">
+  <h2>Intensidade por UF (barras)</h2>
+  <p class="sub">Pés erradicados por 100 mil habitantes (IBGE, Censo 2022). UFs sem ocorrências aparecem com zero.</p>
+  <div class="ctrl">Métrica:
+    <select id="metrica"><option value="pes">pés por 100 mil hab.</option><option value="ocor">ocorrências por 100 mil hab.</option></select>
+  </div>
+  <div class="chart-box tall"><canvas id="barras"></canvas></div>
+  <div class="leia" id="leia-barras"></div>
+</section>
+
+<section class="card">
+  <h2>Distribuição por UF (boxplot de pés por ocorrência)</h2>
+  <p class="sub">Escala logarítmica. Caixa = Q1 a Q3, linha = mediana, bigodes = mínimo e máximo. Só UFs com pelo menos 3 ocorrências.</p>
+  <div class="scroll"><svg id="box" width="100%"></svg></div>
+  <div class="leia" id="leia-box"></div>
+</section>
+
+<section class="card">
+  <h2>Tendência: log10(pés) por ano, com regressão linear</h2>
+  <p class="sub">Cada ponto é uma ocorrência (com leve dispersão horizontal para visualização). Linha tracejada = regressão sobre todas as ocorrências de 2017 a 2026.</p>
+  <div class="chart-box"><canvas id="dispersao"></canvas></div>
+  <div class="leia" id="leia-disp"></div>
+</section>
+
+<section class="card">
+  <h2>População x pés erradicados (log-log, por UF)</h2>
+  <p class="sub">Cada ponto é uma UF com ocorrências. Linha tracejada = regressão linear em escala log-log.</p>
+  <div class="chart-box"><canvas id="popx"></canvas></div>
+  <div class="leia" id="leia-pop"></div>
+</section>
+
+<section class="card wide">
+  <h2>Estatística inferencial</h2>
+  <p class="sub">Testes exploratórios. Os dados vêm de notícias (não de amostra probabilística) e várias UFs têm n pequeno. Um p &lt; 0,05 indica associação distinguível do acaso, não causa.</p>
+  <div id="inf" class="stat"></div>
+</section>
+
+<section class="card wide">
+  <h2>Estatística descritiva por UF</h2>
+  <p class="sub">Pés por ocorrência. CV = desvio padrão dividido pela média.</p>
+  <div class="scroll"><table id="tab"></table></div>
+  <div class="leia" id="leia-tab"></div>
+</section>
+
+<section class="card wide">
+  <div class="warn" id="ressalvas">
+    <b>Ressalvas:</b> (1) Fonte: notícias de operações, não levantamento oficial; a cobertura da imprensa varia por região e por ano.
+    (2) As bases de origem diferem: o Nordeste vem sobretudo de uma base de operações federais e estaduais; Sudeste e Sul vêm de uma busca complementar com plantios menores em estufa.
+    (3) Quantidades são pés erradicados, não produção. "Cerca de" foi usado como ponto e "mais de" como piso.
+    (4) Uma única operação pode dominar a soma de uma UF.
+    (5) População residente por UF: IBGE, Censo Demográfico 2022.
+  </div>
+</section>
+
+</main>
+
+<script>
+const D = {"desc_uf": [{"chave": "Bahia", "n": 24, "soma": 2123853.0, "media": 88493.875, "dp": 96832.09391353338, "mediana": 40000.0, "q1": 5275.0, "q3": 183000.0, "min": 1250.0, "max": 300000.0, "pop": 14141626, "pes_100k": 15018.449787881535, "ocor_100k": 0.16971174318992738}, {"chave": "Pernambuco", "n": 26, "soma": 2040422.0, "media": 78477.76923076923, "dp": 130111.56657063436, "mediana": 14200.0, "q1": 3015.0, "q3": 146000.0, "min": 155.0, "max": 576000.0, "pop": 9058931, "pes_100k": 22523.871746015066, "ocor_100k": 0.2870095820356729}, {"chave": "Maranhão", "n": 16, "soma": 395190.0, "media": 24699.375, "dp": 29316.748448341492, "mediana": 10000.0, "q1": 1000.0, "q3": 46000.0, "min": 50.0, "max": 95000.0, "pop": 6775805, "pes_100k": 5832.369733190373, "ocor_100k": 0.23613430433727062}, {"chave": "Pará", "n": 11, "soma": 371400.0, "media": 33763.63636363636, "dp": 46425.58072285737, "mediana": 15000.0, "q1": 3000.0, "q3": 30000.0, "min": 400.0, "max": 130000.0, "pop": 8121025, "pes_100k": 4573.314329164114, "ocor_100k": 0.13545088212386983}, {"chave": "Paraíba", "n": 5, "soma": 339000.0, "media": 67800.0, "dp": 38238.72382807774, "mediana": 72000.0, "q1": 33500.0, "q3": 100000.0, "min": 7000.0, "max": 100000.0, "pop": 3974687, "pes_100k": 8528.973476402041, "ocor_100k": 0.12579606897348142}, {"chave": "Piauí", "n": 3, "soma": 246000.0, "media": 82000.0, "dp": 70547.85609782908, "mediana": 115000.0, "q1": 1000.0, "q3": 130000.0, "min": 1000.0, "max": 130000.0, "pop": 3272199, "pes_100k": 7517.88017782537, "ocor_100k": 0.09168146558323623}, {"chave": "Ceará", "n": 9, "soma": 148403.0, "media": 16489.222222222223, "dp": 25334.1715267037, "mediana": 500.0, "q1": 33.5, "q3": 37500.0, "min": 6.0, "max": 60000.0, "pop": 8794957, "pes_100k": 1687.3647022947355, "ocor_100k": 0.10233137012494772}, {"chave": "Santa Catarina", "n": 4, "soma": 138324.0, "media": 34581.0, "dp": 68946.01942099341, "mediana": 137.5, "q1": 74.5, "q3": 69087.5, "min": 49.0, "max": 138000.0, "pop": 7610361, "pes_100k": 1817.5747510532021, "ocor_100k": 0.05255992455548429}, {"chave": "Minas Gerais", "n": 12, "soma": 126774.0, "media": 10564.5, "dp": 15066.003888948728, "mediana": 225.0, "q1": 78.5, "q3": 25000.0, "min": 5.0, "max": 40000.0, "pop": 20539989, "pes_100k": 617.2057833137106, "ocor_100k": 0.058422621355834224}, {"chave": "Amazonas", "n": 7, "soma": 15856.0, "media": 2265.1428571428573, "dp": 2760.631596125026, "mediana": 2000.0, "q1": 51.0, "q3": 3000.0, "min": 5.0, "max": 8000.0, "pop": 3941613, "pes_100k": 402.2718617987103, "ocor_100k": 0.17759226996663546}, {"chave": "São Paulo", "n": 10, "soma": 2718.0, "media": 271.8, "dp": 378.74318475716495, "mediana": 144.0, "q1": 62.0, "q3": 235.0, "min": 7.0, "max": 1237.0, "pop": 44411238, "pes_100k": 6.120072581629001, "ocor_100k": 0.022516823331968364}, {"chave": "Rio de Janeiro", "n": 6, "soma": 2382.0, "media": 397.0, "dp": 406.5557772311199, "mediana": 225.0, "q1": 128.0, "q3": 802.0, "min": 2.0, "max": 1000.0, "pop": 16055174, "pes_100k": 14.836338740396087, "ocor_100k": 0.03737113032845362}, {"chave": "Paraná", "n": 5, "soma": 1434.0, "media": 286.8, "dp": 268.25584802572337, "mediana": 154.0, "q1": 100.0, "q3": 540.0, "min": 100.0, "max": 730.0, "pop": 11444380, "pes_100k": 12.530167645604216, "ocor_100k": 0.04368956640726714}, {"chave": "Mato Grosso do Sul", "n": 1, "soma": 100.0, "media": 100.0, "dp": null, "mediana": 100.0, "q1": 100.0, "q3": 100.0, "min": 100.0, "max": 100.0, "pop": 2756700, "pes_100k": 3.6275256647440783, "ocor_100k": 0.03627525664744078}, {"chave": "Rio Grande do Sul", "n": 1, "soma": 88.0, "media": 88.0, "dp": null, "mediana": 88.0, "q1": 88.0, "q3": 88.0, "min": 88.0, "max": 88.0, "pop": 10882965, "pes_100k": 0.8086031701838609, "ocor_100k": 0.009188672388452963}, {"chave": "Rondônia", "n": 1, "soma": 31.0, "media": 31.0, "dp": null, "mediana": 31.0, "q1": 31.0, "q3": 31.0, "min": 31.0, "max": 31.0, "pop": 1581196, "pes_100k": 1.9605412611719228, "ocor_100k": 0.06324326648941687}, {"chave": "Roraima", "n": 2, "soma": 22.0, "media": 11.0, "dp": 11.313708498984761, "mediana": 11.0, "q1": 3.0, "q3": 19.0, "min": 3.0, "max": 19.0, "pop": 636303, "pes_100k": 3.457472304861049, "ocor_100k": 0.31431566407827716}], "desc_regiao": [{"chave": "Nordeste", "n": 83, "soma": 5292868.0, "media": 63769.49397590361, "dp": 94908.80180883962, "mediana": 20000.0, "q1": 2375.0, "q3": 100000.0, "min": 6.0, "max": 576000.0}, {"chave": "Norte", "n": 21, "soma": 387309.0, "media": 18443.285714285714, "dp": 36763.80924923703, "mediana": 3000.0, "q1": 225.5, "q3": 20000.0, "min": 3.0, "max": 130000.0}, {"chave": "Sul", "n": 10, "soma": 139846.0, "media": 13984.6, "dp": 43575.04320696525, "mediana": 127.0, "q1": 100.0, "q3": 350.0, "min": 49.0, "max": 138000.0}, {"chave": "Sudeste", "n": 28, "soma": 131874.0, "media": 4709.785714285715, "dp": 10918.615956101094, "mediana": 167.5, "q1": 75.5, "q3": 901.0, "min": 2.0, "max": 40000.0}, {"chave": "Centro-Oeste", "n": 1, "soma": 100.0, "media": 100.0, "dp": null, "mediana": 100.0, "q1": 100.0, "q3": 100.0, "min": 100.0, "max": 100.0}], "serie_regiao": [{"ano": 2011, "regiao": "Sudeste", "n": 1, "soma": 2.0, "media": 2.0, "dp": null}, {"ano": 2014, "regiao": "Norte", "n": 1, "soma": 31.0, "media": 31.0, "dp": null}, {"ano": 2017, "regiao": "Nordeste", "n": 2, "soma": 49000.0, "media": 24500.0, "dp": 33234.018715767736}, {"ano": 2018, "regiao": "Norte", "n": 3, "soma": 10805.0, "media": 3601.6666666666665, "dp": 5555.358524283859}, {"ano": 2018, "regiao": "Sudeste", "n": 1, "soma": 7.0, "media": 7.0, "dp": null}, {"ano": 2019, "regiao": "Nordeste", "n": 1, "soma": 248000.0, "media": 248000.0, "dp": null}, {"ano": 2019, "regiao": "Norte", "n": 1, "soma": 3000.0, "media": 3000.0, "dp": null}, {"ano": 2019, "regiao": "Sudeste", "n": 1, "soma": 35.0, "media": 35.0, "dp": null}, {"ano": 2020, "regiao": "Nordeste", "n": 7, "soma": 264335.0, "media": 37762.142857142855, "dp": 59966.657325629916}, {"ano": 2020, "regiao": "Norte", "n": 3, "soma": 18019.0, "media": 6006.333333333333, "dp": 7930.07694372087}, {"ano": 2020, "regiao": "Sudeste", "n": 1, "soma": 250.0, "media": 250.0, "dp": null}, {"ano": 2021, "regiao": "Nordeste", "n": 8, "soma": 222660.0, "media": 27832.5, "dp": 34512.03837586448}, {"ano": 2021, "regiao": "Norte", "n": 4, "soma": 28054.0, "media": 7013.5, "dp": 12072.639603665802}, {"ano": 2021, "regiao": "Sudeste", "n": 1, "soma": 600.0, "media": 600.0, "dp": null}, {"ano": 2022, "regiao": "Nordeste", "n": 7, "soma": 472519.0, "media": 67502.71428571429, "dp": 104076.04203452122}, {"ano": 2022, "regiao": "Norte", "n": 2, "soma": 132000.0, "media": 66000.0, "dp": 90509.66799187809}, {"ano": 2022, "regiao": "Sudeste", "n": 1, "soma": 200.0, "media": 200.0, "dp": null}, {"ano": 2022, "regiao": "Sul", "n": 2, "soma": 830.0, "media": 415.0, "dp": 445.47727214752496}, {"ano": 2023, "regiao": "Norte", "n": 1, "soma": 2000.0, "media": 2000.0, "dp": null}, {"ano": 2023, "regiao": "Sudeste", "n": 4, "soma": 2572.0, "media": 643.0, "dp": 560.2374496586247}, {"ano": 2023, "regiao": "Sul", "n": 1, "soma": 175.0, "media": 175.0, "dp": null}, {"ano": 2024, "regiao": "Nordeste", "n": 6, "soma": 569622.0, "media": 94937.0, "dp": 112847.13471772334}, {"ano": 2024, "regiao": "Sudeste", "n": 2, "soma": 214.0, "media": 107.0, "dp": 25.45584412271571}, {"ano": 2024, "regiao": "Sul", "n": 1, "soma": 100.0, "media": 100.0, "dp": null}, {"ano": 2025, "regiao": "Nordeste", "n": 27, "soma": 1407477.0, "media": 52128.77777777778, "dp": 65799.77536046137}, {"ano": 2025, "regiao": "Norte", "n": 4, "soma": 133400.0, "media": 33350.0, "dp": 57851.15959656009}, {"ano": 2025, "regiao": "Sudeste", "n": 7, "soma": 7569.0, "media": 1081.2857142857142, "dp": 2184.0810206496244}, {"ano": 2025, "regiao": "Sul", "n": 3, "soma": 138450.0, "media": 46150.0, "dp": 79544.53155308666}, {"ano": 2026, "regiao": "Centro-Oeste", "n": 1, "soma": 100.0, "media": 100.0, "dp": null}, {"ano": 2026, "regiao": "Nordeste", "n": 25, "soma": 2059255.0, "media": 82370.2, "dp": 128460.87533823933}, {"ano": 2026, "regiao": "Norte", "n": 2, "soma": 60000.0, "media": 30000.0, "dp": 0.0}, {"ano": 2026, "regiao": "Sudeste", "n": 9, "soma": 120425.0, "media": 13380.555555555555, "dp": 16540.455549282124}, {"ano": 2026, "regiao": "Sul", "n": 3, "soma": 291.0, "media": 97.0, "dp": 53.075418038862395}], "eventos": [{"uf": "Amazonas", "regiao": "Norte", "ano": 2019, "pes": 3000.0}, {"uf": "Amazonas", "regiao": "Norte", "ano": 2025, "pes": 8000.0}, {"uf": "Amazonas", "regiao": "Norte", "ano": 2023, "pes": 2000.0}, {"uf": "Amazonas", "regiao": "Norte", "ano": 2022, "pes": 2000.0}, {"uf": "Amazonas", "regiao": "Norte", "ano": 2021, "pes": 51.0}, {"uf": "Amazonas", "regiao": "Norte", "ano": 2018, "pes": 800.0}, {"uf": "Amazonas", "regiao": "Norte", "ano": 2018, "pes": 5.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2021, "pes": 48000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2022, "pes": 1500.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 1850.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 11000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 200000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 25280.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 1250.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 3213.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 5210.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 23000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 32000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 200000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2025, "pes": 186000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2026, "pes": 22000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2026, "pes": 5300.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2026, "pes": 200000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2026, "pes": 5250.0}, {"uf": "Ceará", "regiao": "Nordeste", "ano": 2020, "pes": 54.0}, {"uf": "Ceará", "regiao": "Nordeste", "ano": 2021, "pes": 500.0}, {"uf": "Ceará", "regiao": "Nordeste", "ano": 2022, "pes": 13.0}, {"uf": "Ceará", "regiao": "Nordeste", "ano": 2022, "pes": 6.0}, {"uf": "Ceará", "regiao": "Nordeste", "ano": 2025, "pes": 60000.0}, {"uf": "Ceará", "regiao": "Nordeste", "ano": 2025, "pes": 60000.0}, {"uf": "Ceará", "regiao": "Nordeste", "ano": 2025, "pes": 12500.0}, {"uf": "Ceará", "regiao": "Nordeste", "ano": 2026, "pes": 15000.0}, {"uf": "Ceará", "regiao": "Nordeste", "ano": 2026, "pes": 330.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2021, "pes": 95000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2025, "pes": 10000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2026, "pes": 20000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2026, "pes": 50000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2026, "pes": 70000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2022, "pes": 42000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2022, "pes": 1000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2021, "pes": 1000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2021, "pes": 54000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2021, "pes": 140.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2020, "pes": 50.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2020, "pes": 2000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2017, "pes": 1000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2025, "pes": 29000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2025, "pes": 10000.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2022, "pes": 200.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2025, "pes": 6000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2024, "pes": 278000.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2020, "pes": 15000.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2021, "pes": 25000.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2021, "pes": 3000.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2022, "pes": 130000.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2025, "pes": 120000.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2025, "pes": 5000.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2025, "pes": 400.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2020, "pes": 3000.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2018, "pes": 10000.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2026, "pes": 30000.0}, {"uf": "Pará", "regiao": "Norte", "ano": 2026, "pes": 30000.0}, {"uf": "Paraíba", "regiao": "Nordeste", "ano": 2024, "pes": 60000.0}, {"uf": "Paraíba", "regiao": "Nordeste", "ano": 2025, "pes": 100000.0}, {"uf": "Paraíba", "regiao": "Nordeste", "ano": 2025, "pes": 100000.0}, {"uf": "Paraíba", "regiao": "Nordeste", "ano": 2026, "pes": 72000.0}, {"uf": "Paraíba", "regiao": "Nordeste", "ano": 2024, "pes": 7000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2017, "pes": 48000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2020, "pes": 146000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2021, "pes": 12020.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2021, "pes": 12000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2024, "pes": 190000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2024, "pes": 25000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2024, "pes": 9622.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2025, "pes": 13000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2025, "pes": 150000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2025, "pes": 31000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2025, "pes": 6000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2025, "pes": 3015.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2025, "pes": 4004.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2026, "pes": 600.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2022, "pes": 256000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2022, "pes": 172000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2019, "pes": 248000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2020, "pes": 100000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2020, "pes": 15400.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2020, "pes": 831.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2026, "pes": 576000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2026, "pes": 800.0}, {"uf": "Piauí", "regiao": "Nordeste", "ano": 2025, "pes": 130000.0}, {"uf": "Rio de Janeiro", "regiao": "Sudeste", "ano": 2025, "pes": 300.0}, {"uf": "Santa Catarina", "regiao": "Sul", "ano": 2025, "pes": 138000.0}, {"uf": "Piauí", "regiao": "Nordeste", "ano": 2026, "pes": 115000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2026, "pes": 180000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2026, "pes": 2375.0}, {"uf": "Piauí", "regiao": "Nordeste", "ano": 2026, "pes": 1000.0}, {"uf": "Maranhão", "regiao": "Nordeste", "ano": 2026, "pes": 10000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2026, "pes": 140000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2026, "pes": 50000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2026, "pes": 17000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2026, "pes": 80000.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2026, "pes": 1600.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2026, "pes": 125000.0}, {"uf": "Bahia", "regiao": "Nordeste", "ano": 2026, "pes": 300000.0}, {"uf": "Rio de Janeiro", "regiao": "Sudeste", "ano": 2026, "pes": 128.0}, {"uf": "Rio de Janeiro", "regiao": "Sudeste", "ano": 2025, "pes": 802.0}, {"uf": "Rio de Janeiro", "regiao": "Sudeste", "ano": 2023, "pes": 1000.0}, {"uf": "Rio de Janeiro", "regiao": "Sudeste", "ano": 2011, "pes": 2.0}, {"uf": "Rio de Janeiro", "regiao": "Sudeste", "ano": 2026, "pes": 150.0}, {"uf": "São Paulo", "regiao": "Sudeste", "ano": 2026, "pes": 62.0}, {"uf": "São Paulo", "regiao": "Sudeste", "ano": 2025, "pes": 172.0}, {"uf": "São Paulo", "regiao": "Sudeste", "ano": 2021, "pes": 600.0}, {"uf": "São Paulo", "regiao": "Sudeste", "ano": 2023, "pes": 235.0}, {"uf": "São Paulo", "regiao": "Sudeste", "ano": 2024, "pes": 125.0}, {"uf": "São Paulo", "regiao": "Sudeste", "ano": 2018, "pes": 7.0}, {"uf": "São Paulo", "regiao": "Sudeste", "ano": 2025, "pes": 163.0}, {"uf": "Paraná", "regiao": "Sul", "ano": 2022, "pes": 730.0}, {"uf": "Paraná", "regiao": "Sul", "ano": 2025, "pes": 100.0}, {"uf": "Paraná", "regiao": "Sul", "ano": 2024, "pes": 100.0}, {"uf": "Paraná", "regiao": "Sul", "ano": 2025, "pes": 350.0}, {"uf": "Paraná", "regiao": "Sul", "ano": 2026, "pes": 154.0}, {"uf": "Rio Grande do Sul", "regiao": "Sul", "ano": 2026, "pes": 88.0}, {"uf": "Santa Catarina", "regiao": "Sul", "ano": 2026, "pes": 49.0}, {"uf": "Santa Catarina", "regiao": "Sul", "ano": 2023, "pes": 175.0}, {"uf": "Mato Grosso do Sul", "regiao": "Centro-Oeste", "ano": 2026, "pes": 100.0}, {"uf": "Roraima", "regiao": "Norte", "ano": 2021, "pes": 3.0}, {"uf": "Roraima", "regiao": "Norte", "ano": 2020, "pes": 19.0}, {"uf": "Rondônia", "regiao": "Norte", "ano": 2014, "pes": 31.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2026, "pes": 30000.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2026, "pes": 20000.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2026, "pes": 30000.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2026, "pes": 40000.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2025, "pes": 127.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2023, "pes": 100.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2025, "pes": 5.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2019, "pes": 35.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2020, "pes": 250.0}, {"uf": "Minas Gerais", "regiao": "Sudeste", "ano": 2026, "pes": 57.0}, {"uf": "Pernambuco", "regiao": "Nordeste", "ano": 2025, "pes": 155.0}, {"uf": "Santa Catarina", "regiao": "Sul", "ano": 2022, "pes": 100.0}, {"uf": "São Paulo", "regiao": "Sudeste", "ano": 2024, "pes": 89.0}, {"uf": "São Paulo", "regiao": "Sudeste", "ano": 2026, "pes": 28.0}, {"uf": "São Paulo", "regiao": "Sudeste", "ano": 2023, "pes": 1237.0}], "inferencia": {"tendencia_log10_pes_ano_por_regiao": {"Norte": {"n": 20, "slope": 0.20828260972909354, "intercept": -417.80455799344315, "r2": 0.17854909678619413, "se_slope": 0.10530008821697466, "t": 1.9779908379556117, "p": 0.06344477669377341}, "Nordeste": {"n": 83, "slope": 0.10366012541839183, "intercept": -205.6927502816124, "r2": 0.05275410202141184, "se_slope": 0.048805916177598566, "t": 2.1239254077556033, "p": 0.03672693497540657}, "Sudeste": {"n": 27, "slope": 0.16342946007085699, "intercept": -328.2716497607402, "r2": 0.128990622008063, "se_slope": 0.08493617293217533, "t": 1.9241443831165015, "p": 0.0657917887426648}, "Sul": {"n": 10, "slope": -0.021711638266730626, "intercept": 46.41429125842682, "r2": 0.0011777064567869422, "se_slope": 0.22354923433321283, "t": -0.09712240049262792, "p": 0.9250183179493472}}, "tendencia_log10_soma_anual_2017_2025": {"n": 9, "slope": 0.13662783283748814, "intercept": -270.9674374643457, "r2": 0.19409674369297814, "se_slope": 0.1052258615494682, "t": 1.2984244635835784, "p": 0.23527908382573626}, "welch_log10_nordeste_vs_sudeste_sul": {"n1": 83, "n2": 38, "media1": 4.105352227822925, "media2": 2.4430409836977405, "t": 7.95027351594822, "df": 72.0975892176073, "p": 1.8830782097753087e-11}, "welch_log10_nordeste_vs_norte": {"n1": 83, "n2": 21, "media1": 4.105352227822925, "media2": 3.215038515742716, "t": 2.7752652901917743, "df": 26.52081448881643, "p": 0.009980704855942567}, "pearson_log_pop_vs_log_pes_uf": {"n": 17, "r": 0.4035487882332059, "t": 1.7082068444725236, "p": 0.10820298746860721}, "ols_log_pop_vs_log_pes_uf": {"n": 17, "slope": 1.5642476682206272, "intercept": -6.500217677313758, "r2": 0.16285162448448898, "se_slope": 0.9157249739879425, "t": 1.7082068444725238, "p": 0.10820298746860721}, "ols_ano_log10_pes_pooled": {"n": 141, "slope": 0.11446981896635144, "intercept": -228.09503875609107, "r2": 0.047318585777727296, "se_slope": 0.04356538577096332, "t": 2.6275405793065767, "p": 0.009566472998834669}}, "populacao": {"São Paulo": 44411238, "Minas Gerais": 20539989, "Rio de Janeiro": 16055174, "Bahia": 14141626, "Paraná": 11444380, "Rio Grande do Sul": 10882965, "Pernambuco": 9058931, "Ceará": 8794957, "Pará": 8121025, "Santa Catarina": 7610361, "Goiás": 7056495, "Maranhão": 6775805, "Paraíba": 3974687, "Amazonas": 3941613, "Espírito Santo": 3833486, "Mato Grosso": 3658649, "Rio Grande do Norte": 3302729, "Piauí": 3272199, "Alagoas": 3127683, "Distrito Federal": 2817381, "Mato Grosso do Sul": 2756700, "Sergipe": 2209558, "Rondônia": 1581196, "Tocantins": 1511459, "Acre": 830018, "Amapá": 733759, "Roraima": 636303}};
+const REG_COR = {"Nordeste":"#b45309","Norte":"#15803d","Sudeste":"#1d4ed8","Sul":"#7c3aed","Centro-Oeste":"#64748b","Multi-UF":"#999","NA":"#999"};
+const nf = (n, d=0) => (n==null || isNaN(n)) ? "–" : Number(n).toLocaleString("pt-BR", {maximumFractionDigits: d, minimumFractionDigits: d});
+const pv = p => (p==null || isNaN(p)) ? "–" : (p < 0.001 ? "< 0,001" : nf(p, 3));
+const pct = x => nf(x, 0) + "%";
+const anoTxt = a => String(Math.round(a));
+const inf = D.inferencia;
+const totalPes = D.eventos.reduce((s, e) => s + e.pes, 0);
+
+// ---------- KPIs ----------
+(function kpis(){
+  const anos = D.eventos.map(e => e.ano);
+  const ufs = new Set(D.eventos.map(e => e.uf));
+  const ne = D.desc_regiao.find(d => d.chave === "Nordeste");
+  const items = [
+    [nf(totalPes), "pés erradicados (soma das estimativas)"],
+    [nf(D.eventos.length), "ocorrências incluídas"],
+    [ufs.size + " de 27", "UFs com ocorrência"],
+    [Math.min(...anos) + "–" + Math.max(...anos), "período coberto (2026 parcial)"],
+    [ne ? pct(ne.soma / totalPes * 100) : "–", "participação do Nordeste nos pés"],
+  ];
+  document.getElementById("kpis").innerHTML = items.map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+})();
+
+// ---------- linhas ----------
+const anos = [...new Set(D.serie_regiao.map(s => s.ano))].sort((a,b)=>a-b);
+const regioes = [...new Set(D.serie_regiao.map(s => s.regiao))];
+let chLinhas = new Chart(document.getElementById("linhas"), {
+  type: "line",
+  data: {
+    labels: anos.map(a => anoTxt(a) + (a===2026 ? " (parcial)" : "")),
+    datasets: regioes.map(r => ({
+      label: r, borderColor: REG_COR[r] || "#333", backgroundColor: REG_COR[r] || "#333",
+      data: anos.map(a => { const s = D.serie_regiao.find(x => x.ano===a && x.regiao===r); return s ? s.soma : null; }),
+      tension: 0.25, spanGaps: true, pointRadius: 3
+    }))
+  },
+  options: { responsive:true, maintainAspectRatio:false,
+    plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ": " + nf(c.parsed.y) + " pés" } } },
+    scales: { y: { type:"linear", title:{display:true, text:"pés erradicados (soma anual)"}, ticks:{ callback: v => nf(v) } } } }
+});
+document.getElementById("escala").addEventListener("change", e => {
+  chLinhas.options.scales.y.type = e.target.value; chLinhas.update();
+});
+(function leiaLinhas(){
+  const porReg = {};
+  D.serie_regiao.forEach(s => { porReg[s.regiao] = (porReg[s.regiao] || 0) + s.soma; });
+  const ordem = Object.entries(porReg).sort((a,b)=>b[1]-a[1]);
+  const [r1, v1] = ordem[0];
+  const pico = D.serie_regiao.filter(s => s.regiao === r1).sort((a,b)=>b.soma-a.soma)[0];
+  const n25 = D.eventos.filter(e => e.ano === 2025).length, n26 = D.eventos.filter(e => e.ano === 2026).length;
+  const nAntes = D.eventos.filter(e => e.ano <= 2024).length;
+  document.getElementById("leia-linhas").innerHTML = `
+    <p><b>Como ler:</b> cada linha soma, por ano, os pés erradicados nas ocorrências noticiadas de uma região. Na escala linear, lê-se o volume; na logarítmica, cada marca é 10 vezes a anterior e as regiões ficam comparáveis em ritmo de variação, não em tamanho.</p>
+    <p><b>O que diz:</b> o ${r1} concentra ${pct(v1/totalPes*100)} de todos os pés e lidera a série em todos os anos com registro. O maior valor anual é ${nf(pico.soma)} pés em ${anoTxt(pico.ano)}${pico.ano===2026?" (ano parcial)":""}. A subida forte de 2024 a 2026 coincide com um salto no número de registros (${nAntes} ocorrências até 2024, ${n25} em 2025 e ${n26} em 2026): parte do crescimento é maior cobertura e coleta, não só mais erradicação. As demais regiões ficam abaixo de ${nf(ordem[1][1])} pés acumulados (${ordem[1][0]}).</p>`;
+})();
+
+// ---------- barras ----------
+const ufsAll = Object.keys(D.populacao).map(uf => {
+  const d = D.desc_uf.find(x => x.chave === uf) || {};
+  return { uf, pes100: d.pes_100k || 0, ocor100: d.ocor_100k || 0, n: d.n || 0, soma: d.soma || 0 };
+}).sort((a,b)=> b.pes100 - a.pes100);
+let chBarras = new Chart(document.getElementById("barras"), {
+  type: "bar",
+  data: { labels: ufsAll.map(u => u.uf), datasets: [{ label: "pés por 100 mil hab.", data: ufsAll.map(u => u.pes100), backgroundColor: "#8b0000" }] },
+  options: { indexAxis: "y", responsive:true, maintainAspectRatio:false,
+    plugins: { legend:{display:false}, tooltip: { callbacks: { label: c => nf(c.parsed.x, c.chart.data.datasets[0].label.startsWith("pés") ? 0 : 3), afterLabel: c => { const u = c.chart.$ufs[c.dataIndex]; return "ocorrências: " + u.n + " | pés: " + nf(u.soma); } } } },
+    scales: { x: { title:{display:true, text:"pés por 100 mil habitantes"}, ticks:{ callback: v => nf(v) } } } }
+});
+chBarras.$ufs = ufsAll;
+document.getElementById("metrica").addEventListener("change", e => {
+  const pes = e.target.value === "pes";
+  const arr = [...ufsAll].sort((a,b)=> pes ? b.pes100 - a.pes100 : b.ocor100 - a.ocor100);
+  chBarras.$ufs = arr;
+  chBarras.data.labels = arr.map(u => u.uf);
+  chBarras.data.datasets[0].label = pes ? "pés por 100 mil hab." : "ocorrências por 100 mil hab.";
+  chBarras.data.datasets[0].data = arr.map(u => pes ? u.pes100 : u.ocor100);
+  chBarras.options.scales.x.title.text = pes ? "pés por 100 mil habitantes" : "ocorrências por 100 mil habitantes";
+  chBarras.update();
+});
+(function leiaBarras(){
+  const top = ufsAll.slice(0, 3);
+  const zero = ufsAll.filter(u => u.n === 0).map(u => u.uf);
+  const porOcor = [...ufsAll].sort((a,b)=> b.ocor100 - a.ocor100).slice(0, 3);
+  document.getElementById("leia-barras").innerHTML = `
+    <p><b>Como ler:</b> a barra divide o total de pés erradicados da UF pela sua população residente (IBGE, Censo 2022) e multiplica por 100 mil. É uma medida de intensidade relativa: corrige o fato de UFs populosas terem mais de tudo. A segunda métrica faz o mesmo com o número de ocorrências.</p>
+    <p><b>O que diz:</b> ${top.map(u => `${u.uf} (${nf(u.pes100)} pés/100 mil hab., ${u.n} ocorrências)`).join(", ")} lideram. Em ocorrências por habitante o ranking muda: ${porOcor.map(u => `${u.uf} (${nf(u.ocor100,2)})`).join(", ")}, porque UFs pouco populosas sobem com poucos casos. ${zero.length} UFs não têm ocorrência na base (${zero.join(", ")}): isso é ausência de registro, não ausência de plantio.</p>`;
+})();
+
+// ---------- boxplot (SVG) ----------
+(function boxplot(){
+  const items = D.desc_uf.filter(d => d.n >= 3).sort((a,b)=> b.mediana - a.mediana);
+  const W = 760, rowH = 34, left = 110, right = 60, top = 24;
+  const H = top + items.length * rowH + 36;
+  const lg = v => Math.log10(v);
+  const lo = Math.min(...items.map(d => lg(d.min))) - 0.2;
+  const hi = Math.max(...items.map(d => lg(d.max))) + 0.2;
+  const X = v => left + (lg(v) - lo) / (hi - lo) * (W - left - right);
+  const svg = document.getElementById("box");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+  let s = "";
+  for (let p = Math.ceil(lo); p <= Math.floor(hi); p++) {
+    const x = left + (p - lo) / (hi - lo) * (W - left - right);
+    s += `<line x1="${x}" x2="${x}" y1="${top-6}" y2="${H-26}" stroke="var(--line)"/>`;
+    s += `<text x="${x}" y="${H-10}" text-anchor="middle">${nf(Math.pow(10,p))}</text>`;
+  }
+  items.forEach((d, i) => {
+    const y = top + i * rowH + rowH/2;
+    s += `<text x="${left-8}" y="${y+4}" text-anchor="end">${d.chave}</text>`;
+    s += `<line x1="${X(d.min)}" x2="${X(d.max)}" y1="${y}" y2="${y}" stroke="#888"/>`;
+    s += `<line x1="${X(d.min)}" x2="${X(d.min)}" y1="${y-6}" y2="${y+6}" stroke="#888"/>`;
+    s += `<line x1="${X(d.max)}" x2="${X(d.max)}" y1="${y-6}" y2="${y+6}" stroke="#888"/>`;
+    s += `<rect x="${X(d.q1)}" y="${y-9}" width="${Math.max(2, X(d.q3)-X(d.q1))}" height="18" fill="#8b000033" stroke="#8b0000"/>`;
+    s += `<line x1="${X(d.mediana)}" x2="${X(d.mediana)}" y1="${y-9}" y2="${y+9}" stroke="#8b0000" stroke-width="2"/>`;
+    s += `<text x="${W-right+6}" y="${y+4}">n=${d.n}</text>`;
+  });
+  svg.innerHTML = s;
+
+  const maior = items[0];
+  const amplo = [...items].sort((a,b)=> (b.max/b.min) - (a.max/a.min))[0];
+  const pequenos = items.filter(d => d.mediana < 1000).map(d => d.chave);
+  const grandes = items.filter(d => d.mediana >= 10000).map(d => d.chave);
+  document.getElementById("leia-box").innerHTML = `
+    <p><b>Como ler:</b> cada linha é uma UF. A caixa vai do primeiro ao terceiro quartil, ou seja, contém a metade central das ocorrências; a linha vermelha é a mediana (ocorrência típica); os bigodes vão da menor à maior ocorrência. O eixo é logarítmico: cada marca vale 10 vezes a anterior, por isso uma caixa larga indica ocorrências de tamanhos muito diferentes.</p>
+    <p><b>O que diz:</b> ${maior.chave} tem a maior mediana (${nf(maior.mediana)} pés por ocorrência). ${amplo.chave} tem a maior amplitude: do mínimo de ${nf(amplo.min)} ao máximo de ${nf(amplo.max)} pés, uma razão de ${nf(amplo.max/amplo.min)} vezes. Há dois perfis claros: UFs com mediana acima de 10 mil pés (${grandes.join(", ")}) e UFs com mediana abaixo de mil (${pequenos.join(", ")}), onde predominam estufas e plantios domésticos. Isso é tanto diferença real de modalidade quanto diferença de base de coleta.</p>`;
+})();
+
+// ---------- dispersao + regressao (ano x log10 pes) ----------
+const jit = (i) => ((i * 9301 + 49297) % 233280) / 233280 * 0.6 - 0.3;
+const pontos = {};
+D.eventos.filter(e => e.ano >= 2017 && e.pes > 0).forEach((e, i) => {
+  (pontos[e.regiao] = pontos[e.regiao] || []).push({ x: e.ano + jit(i), y: Math.log10(e.pes), uf: e.uf, pes: e.pes, ano: e.ano });
+});
+const reg = inf.ols_ano_log10_pes_pooled;
+const dsDisp = Object.keys(pontos).map(r => ({ label: r, data: pontos[r], backgroundColor: REG_COR[r] || "#333", pointRadius: 4 }));
+if (reg) dsDisp.push({ label: "regressão (todas)", type: "line", data: [{x:2017, y: reg.intercept + reg.slope*2017},{x:2026, y: reg.intercept + reg.slope*2026}], borderColor:"#000", borderWidth:2, pointRadius:0, borderDash:[6,4] });
+new Chart(document.getElementById("dispersao"), {
+  type: "scatter",
+  data: { datasets: dsDisp },
+  options: { responsive:true, maintainAspectRatio:false,
+    plugins: { tooltip: { callbacks: { label: c => c.dataset.label === "regressão (todas)" ? "" : (c.raw.uf + " " + anoTxt(c.raw.ano) + ": " + nf(c.raw.pes) + " pés") } } },
+    scales: { x: { min: 2016.5, max: 2026.5, title:{display:true, text:"ano"},
+                   afterBuildTicks: ax => { ax.ticks = []; for (let y = 2017; y <= 2026; y++) ax.ticks.push({ value: y }); },
+                   ticks:{ autoSkip:false, callback: v => anoTxt(v) } },
+              y: { title:{display:true, text:"log10(pés)"}, ticks:{ callback: v => Number.isInteger(v) ? v + " (" + nf(Math.pow(10,v)) + ")" : "" } } } }
+});
+(function leiaDisp(){
+  if (!reg) return;
+  const taxa = (Math.pow(10, reg.slope) - 1) * 100;
+  const tend = inf.tendencia_log10_pes_ano_por_regiao || {};
+  const sig = Object.entries(tend).filter(([,t]) => t.p < 0.05).map(([r]) => r);
+  document.getElementById("leia-disp").innerHTML = `
+    <p><b>Como ler:</b> cada ponto é uma ocorrência; o eixo vertical é o logaritmo dos pés (3 = mil, 4 = 10 mil, 5 = 100 mil), o que evita que as maiores operações escondam as demais. A reta é a regressão linear de log10(pés) sobre o ano: a inclinação é a variação média anual do tamanho de uma ocorrência; R² é a fração da variação explicada pelo ano; p é a chance de uma inclinação assim surgir sem tendência real.</p>
+    <p><b>O que diz:</b> inclinação ${nf(reg.slope,3)} por ano, o que equivale a ${taxa>=0?"+":""}${nf(taxa)}% ao ano no tamanho típico das ocorrências entre 2017 e 2026 (n = ${reg.n}). R² = ${nf(reg.r2,3)}: o ano explica só ${pct(reg.r2*100)} da variação, ou seja, o tamanho de uma ocorrência depende muito mais de onde ela ocorre do que de quando. p = ${pv(reg.p)}, mas as ocorrências não são independentes (mesma operação, mesma UF, mesma base de coleta), então esse p é otimista. ${sig.length ? "Por região, a tendência é significativa a 5% em: " + sig.join(", ") + "." : "Separando por região, nenhuma tendência é significativa a 5%."} Leitura prudente: há um sinal fraco de ocorrências maiores ao longo do tempo, não uma prova.</p>`;
+})();
+
+// ---------- populacao x pes ----------
+const popPts = D.desc_uf.filter(d => d.pop && d.soma > 0).map(d => ({ x: Math.log10(d.pop), y: Math.log10(d.soma), uf: d.chave, pes: d.soma, pop: d.pop }));
+const ols2 = inf.ols_log_pop_vs_log_pes_uf;
+const dsPop = [{ label: "UFs", data: popPts, backgroundColor: "#8b0000", pointRadius: 5 }];
+if (ols2 && popPts.length) {
+  const xs = popPts.map(p => p.x), x0 = Math.min(...xs), x1 = Math.max(...xs);
+  dsPop.push({ label: "regressão", type:"line", data:[{x:x0, y: ols2.intercept + ols2.slope*x0},{x:x1,y: ols2.intercept + ols2.slope*x1}], borderColor:"#000", borderDash:[6,4], pointRadius:0 });
+}
+new Chart(document.getElementById("popx"), {
+  type: "scatter",
+  data: { datasets: dsPop },
+  options: { responsive:true, maintainAspectRatio:false,
+    plugins: { tooltip: { callbacks: { label: c => c.dataset.label === "regressão" ? "" : (c.raw.uf + ": " + nf(c.raw.pes) + " pés; pop. " + nf(c.raw.pop)) } } },
+    scales: { x: { title:{display:true, text:"log10(população 2022)"}, ticks:{ callback: v => Number.isInteger(v) ? nf(Math.pow(10,v)) : "" } },
+              y: { title:{display:true, text:"log10(pés erradicados)"}, ticks:{ callback: v => Number.isInteger(v) ? nf(Math.pow(10,v)) : "" } } } }
+});
+(function leiaPop(){
+  const p = inf.pearson_log_pop_vs_log_pes_uf;
+  if (!p || !ols2) return;
+  const res = popPts.map(q => ({ uf: q.uf, r: q.y - (ols2.intercept + ols2.slope * q.x) })).sort((a,b)=>b.r-a.r);
+  const acima = res.slice(0,2).map(r => r.uf), abaixo = res.slice(-2).map(r => r.uf);
+  document.getElementById("leia-pop").innerHTML = `
+    <p><b>Como ler:</b> cada ponto é uma UF; os dois eixos estão em logaritmo. A inclinação da reta é uma elasticidade: quanto por cento os pés erradicados aumentam quando a população aumenta 1%. O r de Pearson mede a força da associação linear entre os dois logaritmos (de −1 a 1).</p>
+    <p><b>O que diz:</b> r = ${nf(p.r,3)} com p = ${pv(p.p)} (n = ${p.n} UFs): associação positiva fraca e não significativa a 5%. Inclinação ${nf(ols2.slope,2)}: cada 1% a mais de população associa-se a cerca de ${nf(ols2.slope,2)}% a mais de pés, com R² = ${nf(ols2.r2,2)}. Ou seja, o tamanho da população explica pouco a erradicação: ${acima.join(" e ")} ficam muito acima da reta (erradicam muito mais do que o esperado pelo tamanho) e ${abaixo.join(" e ")} muito abaixo. A geografia da erradicação segue as zonas de cultivo, não a demografia.</p>`;
+})();
+
+// ---------- inferencia (texto) ----------
+(function infer(){
+  let h = "";
+  const tend = inf.tendencia_log10_pes_ano_por_regiao || {};
+  h += `<h3>1. Tendência anual por região (regressão de log10 dos pés sobre o ano, 2017–2026)</h3>
+    <p><b>O que testa:</b> se o tamanho típico de uma ocorrência cresce ou cai com o tempo, dentro de cada região. A inclinação é convertida em variação percentual ao ano.</p><ul>`;
+  for (const r of Object.keys(tend)) {
+    const t = tend[r];
+    const dir = t.slope > 0 ? "aumento" : "queda";
+    h += `<li>${r}: ${dir} de ${nf(Math.abs(Math.pow(10, t.slope)-1)*100)}% ao ano (inclinação ${nf(t.slope,3)}), R² = ${nf(t.r2,3)}, p = ${pv(t.p)}, n = ${t.n}</li>`;
+  }
+  h += "</ul>";
+  const regs = Object.entries(tend);
+  const maisForte = regs.sort((a,b)=>a[1].p-b[1].p)[0];
+  h += `<p><b>O que diz:</b> nenhuma região tem tendência significativa a 5%. A mais próxima é ${maisForte[0]} (p = ${pv(maisForte[1].p)}), mas com R² baixo: o ano explica pouco. Os R² pequenos significam que, dentro de cada região, ocorrências grandes e pequenas convivem em todos os anos.</p>`;
+
+  const soma = inf.tendencia_log10_soma_anual_2017_2025;
+  if (soma) {
+    h += `<h3>2. Tendência do total anual (log10 da soma de pés sobre o ano, 2017–2025)</h3>
+      <p><b>O que testa:</b> se o volume anual total erradicado cresce, usando um valor por ano (o que evita a dependência entre ocorrências). 2026 fica fora por ser parcial.</p>
+      <p class="num">inclinação = ${nf(soma.slope,3)} (${nf((Math.pow(10,soma.slope)-1)*100)}% ao ano) · R² = ${nf(soma.r2,3)} · p = ${pv(soma.p)} · n = ${soma.n} anos</p>
+      <p><b>O que diz:</b> com só ${soma.n} pontos e a queda de 2023, a tendência de alta ${soma.p < 0.05 ? "é" : "não é"} significativa (p = ${pv(soma.p)}). O crescimento visto no gráfico de linhas depende muito de 2024–2026, anos com mais registros na base.</p>`;
+  }
+  const w1 = inf.welch_log10_nordeste_vs_sudeste_sul;
+  if (w1) {
+    h += `<h3>3. Teste t de Welch: Nordeste x Sudeste+Sul (log10 dos pés por ocorrência)</h3>
+      <p><b>O que testa:</b> se a ocorrência típica do Nordeste é maior que a do Sudeste e Sul. O teste de Welch não exige variâncias iguais. Usa-se o logaritmo porque as quantidades são muito assimétricas.</p>
+      <p class="num">médias em log10: ${nf(w1.media1,2)} (≈ ${nf(Math.pow(10,w1.media1))} pés) x ${nf(w1.media2,2)} (≈ ${nf(Math.pow(10,w1.media2))} pés) · t = ${nf(w1.t,2)} · gl = ${nf(w1.df,1)} · p = ${pv(w1.p)} · n = ${w1.n1} x ${w1.n2}</p>
+      <p><b>O que diz:</b> a diferença é grande e significativa: a ocorrência típica do Nordeste é cerca de ${nf(Math.pow(10, w1.media1 - w1.media2))} vezes a do Sudeste e Sul. Mas as duas regiões vêm de bases diferentes (operações rurais de grande porte x estufas urbanas de busca complementar), então o teste mede ao mesmo tempo diferença regional e diferença de modalidade de cultivo e de coleta.</p>`;
+  }
+  const w2 = inf.welch_log10_nordeste_vs_norte;
+  if (w2) {
+    h += `<h3>4. Teste t de Welch: Nordeste x Norte (log10 dos pés por ocorrência)</h3>
+      <p><b>O que testa:</b> o mesmo, entre as duas regiões que vêm da mesma base de coleta, o que torna a comparação mais limpa.</p>
+      <p class="num">médias em log10: ${nf(w2.media1,2)} (≈ ${nf(Math.pow(10,w2.media1))} pés) x ${nf(w2.media2,2)} (≈ ${nf(Math.pow(10,w2.media2))} pés) · t = ${nf(w2.t,2)} · gl = ${nf(w2.df,1)} · p = ${pv(w2.p)} · n = ${w2.n1} x ${w2.n2}</p>
+      <p><b>O que diz:</b> ${w2.p < 0.05 ? "a diferença é significativa a 5%" : "a diferença não é significativa a 5%"}: a ocorrência típica do Nordeste é cerca de ${nf(Math.pow(10, w2.media1 - w2.media2),1)} vezes a do Norte. Como as bases são as mesmas, este é o melhor indício de que a erradicação no Polígono da Maconha (sertão de PE e norte da BA) opera em escala maior que na Amazônia.</p>`;
+  }
+  const p = inf.pearson_log_pop_vs_log_pes_uf;
+  if (p) {
+    h += `<h3>5. Correlação de Pearson: população x pés erradicados por UF (log-log)</h3>
+      <p><b>O que testa:</b> se UFs mais populosas erradicam mais pés. Se a erradicação fosse proporcional à população, r seria alto e a inclinação próxima de 1.</p>
+      <p class="num">r = ${nf(p.r,3)} · p = ${pv(p.p)} · n = ${p.n} UFs</p>
+      <p><b>O que diz:</b> associação fraca e não significativa. A erradicação não acompanha a demografia; ela se concentra em zonas de cultivo específicas (sertão nordestino, ilhas do São Francisco, Amazônia), independentemente do tamanho da UF.</p>`;
+  }
+  h += `<h3>Síntese</h3><p>A única diferença robusta é espacial: o Nordeste (e, dentro dele, Pernambuco e Bahia) tem ocorrências muito maiores que as demais regiões, mesmo controlando por população. As tendências temporais são fracas e dependem da cobertura recente. Para afirmar crescimento real, seria preciso uma base com cobertura homogênea no tempo (por exemplo, registros administrativos das polícias) ou um modelo com efeito de UF e de fonte.</p>`;
+  document.getElementById("inf").innerHTML = h;
+})();
+
+// ---------- tabela ----------
+(function tabela(){
+  const cols = [["chave","UF"],["n","ocorr."],["soma","pés (soma)"],["media","média"],["dp","DP"],["cv","CV"],["mediana","mediana"],["q1","Q1"],["q3","Q3"],["min","mín"],["max","máx"],["pes_100k","pés/100 mil hab."]];
+  let h = "<tr>" + cols.map(c => `<th>${c[1]}</th>`).join("") + "</tr>";
+  D.desc_uf.forEach(d => {
+    const cv = (d.dp != null && d.media) ? d.dp / d.media : null;
+    h += "<tr>" + cols.map(([k]) => {
+      if (k === "chave") return `<td>${d[k]}</td>`;
+      if (k === "cv") return `<td>${cv == null ? "–" : nf(cv, 2)}</td>`;
+      const v = d[k];
+      return `<td>${v == null ? "–" : nf(v, 0)}</td>`;
+    }).join("") + "</tr>";
+  });
+  document.getElementById("tab").innerHTML = h;
+  const comCv = D.desc_uf.filter(d => d.dp != null && d.media).map(d => ({ uf: d.chave, cv: d.dp / d.media, media: d.media, mediana: d.mediana }));
+  const maisCv = [...comCv].sort((a,b)=>b.cv-a.cv)[0];
+  const acima1 = comCv.filter(d => d.cv > 1).length;
+  document.getElementById("leia-tab").innerHTML = `
+    <p><b>Como ler:</b> média e desvio padrão (DP) descrevem o centro e a dispersão, mas são puxados por valores extremos. O coeficiente de variação (CV = DP/média) compara a dispersão entre UFs de escalas diferentes: CV acima de 1 significa que o DP supera a média, ou seja, a distribuição é muito assimétrica e a mediana descreve melhor a ocorrência típica. Q1 e Q3 delimitam a metade central.</p>
+    <p><b>O que diz:</b> ${acima1} das ${comCv.length} UFs com DP calculável têm CV maior que 1. O caso mais extremo é ${maisCv.uf} (CV = ${nf(maisCv.cv,2)}): média de ${nf(maisCv.media)} contra mediana de ${nf(maisCv.mediana)}, sinal de que uma ou poucas operações grandes puxam a média. Para comparar UFs, prefira a mediana e os quartis; para o volume total, a soma.</p>`;
+})();
+</script>
+</body>
+</html>

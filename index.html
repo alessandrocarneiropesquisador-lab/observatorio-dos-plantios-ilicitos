@@ -300,6 +300,16 @@
             line-height: 1.4; transition: opacity 0.4s ease-in-out;
         }
         .credits-box:hover { opacity: 0.10; }
+        .leaf-btn {
+            position: fixed; bottom: 78px; left: 20px; z-index: 1000; display: block;
+            width: 64px; height: 64px; padding: 5px; box-sizing: content-box;
+            background: rgba(255,255,255,0.85); border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            text-decoration: none; transition: transform .2s ease, box-shadow .2s ease;
+        }
+        .leaf-btn:hover { transform: scale(1.08); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+        .leaf-btn:hover .leaf-blade { fill: url(#leafHover); }
+        .leaf-btn svg { display: block; width: 100%; height: 100%; }
+        .leaf-btn .leaf-label { pointer-events: none; }
 
       /* =========================================================
            MOTOR DE RESPONSIVIDADE (MOBILE OVERRIDE V5)
@@ -323,6 +333,8 @@
             
             .credits-box { bottom: 5px; right: 5px; width: 110px; padding: 4px; font-size: 6px; line-height: 1.1; }
             
+            .leaf-btn { bottom: 44px; left: 5px; width: 40px; height: 40px; padding: 3px; }
+            .leaf-btn .leaf-label { font-size: 11px; }
             .leaflet-control-zoom a { width: 20px !important; height: 20px !important; line-height: 20px !important; font-size: 12px !important; }
             .leaflet-control-zoom { margin-top: 5px !important; margin-left: 5px !important; }
             .leaflet-control-mouseposition { display: none !important; }
@@ -379,6 +391,33 @@
         <hr style="margin:4px 0; border:0; border-top:1px solid #1a1a1a;">
         <div style="text-align:center; font-weight:900;">NEVIDH - UFJF 2026</div>
     </div>
+
+    <a class="leaf-btn" id="leafBtn" href="dashboard.html" target="_blank" rel="noopener noreferrer"
+       title="Abrir o dashboard estatístico do Atlas (descritiva e inferencial por UF)" aria-label="Dashboard estatístico">
+        <svg viewBox="-60 -60 120 120" aria-hidden="true">
+            <defs>
+                <linearGradient id="leafGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#43a047"/><stop offset="100%" stop-color="#1b5e20"/>
+                </linearGradient>
+                <linearGradient id="leafHover" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#66bb6a"/><stop offset="100%" stop-color="#2e7d32"/>
+                </linearGradient>
+                <path id="leafBlade" d="M0,0 C-2.5,-6 -5,-12 -6,-18 L-9,-20 L-7,-25 L-10,-28 L-7,-33 L-9,-37 L-6,-41 L-7,-45 L-4,-48 L-4,-51 L0,-55 L4,-51 L4,-48 L7,-45 L6,-41 L9,-37 L7,-33 L10,-28 L7,-25 L9,-20 L6,-18 C5,-12 2.5,-6 0,0 Z"/>
+            </defs>
+            <circle r="56" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.6"/>
+            <g transform="translate(0,12)" stroke="#0f3d13" stroke-width="0.6" stroke-linejoin="round">
+                <line x1="0" y1="0" x2="0" y2="16" stroke="#1b5e20" stroke-width="2.4" stroke-linecap="round"/>
+                <use href="#leafBlade" class="leaf-blade" fill="url(#leafGrad)" transform="rotate(-96) scale(0.48)"/>
+                <use href="#leafBlade" class="leaf-blade" fill="url(#leafGrad)" transform="rotate(96) scale(0.48)"/>
+                <use href="#leafBlade" class="leaf-blade" fill="url(#leafGrad)" transform="rotate(-62) scale(0.72)"/>
+                <use href="#leafBlade" class="leaf-blade" fill="url(#leafGrad)" transform="rotate(62) scale(0.72)"/>
+                <use href="#leafBlade" class="leaf-blade" fill="url(#leafGrad)" transform="rotate(-30) scale(0.9)"/>
+                <use href="#leafBlade" class="leaf-blade" fill="url(#leafGrad)" transform="rotate(30) scale(0.9)"/>
+                <use href="#leafBlade" class="leaf-blade" fill="url(#leafGrad)" transform="rotate(0) scale(1)"/>
+            </g>
+            <text class="leaf-label" y="47" text-anchor="middle" font-family="Arial" font-size="8.5" font-weight="900" fill="#1a1a1a" letter-spacing="0.4">DASHBOARD</text>
+        </svg>
+    </a>
     
 <script>
     document.addEventListener("DOMContentLoaded", function() {
