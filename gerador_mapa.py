@@ -111,11 +111,49 @@ def rotina_limpeza(texto):
         t = re.sub(ruido, ' ', t, flags=re.IGNORECASE)
     return t.replace(" e ", ", ").replace(".", ", ")
 
+_RUIDO_PARTE = {'brasil', 'amazonas', 'bahia', 'pernambuco', 'paraíba', 'maranhão', 'pará', 'aparato geral', 'amazônia'}
+
+def separar_partes(texto):
+    """Separa a célula em candidatos a município SEM remover conectivos internos
+    ('da', 'de', 'do'), para que 'Carnaubeira da Penha' continue inteiro."""
+    if pd.isna(texto): return []
+    t = re.sub(r'\(.*?\)', '', str(texto))
+    t = re.sub(r'/(?:[A-Z]{2})\b', '', t, flags=re.IGNORECASE)
+    t = re.sub(r'\s+e\s+', ',', t, flags=re.IGNORECASE)
+    saida = []
+    for parte in t.split(','):
+        parte = re.sub(r'\s+', ' ', parte).strip()
+        if len(parte) > 2 and parte.lower() not in _RUIDO_PARTE: saida.append(parte)
+    return saida
+
 def extrair_lista(t):
     return [c.strip() for c in t.split(",") if len(c.strip()) > 2 and c.strip().lower() not in ['brasil', 'amazonas', 'bahia', 'pernambuco', 'paraíba', 'maranhão', 'pará', 'aparato geral']]
 
+logger.info("Acessando malha geodésica do IBGE...")
+coords = pd.read_csv(io.StringIO(requests.get("https://raw.githubusercontent.com/kelvins/municipios-brasileiros/main/csv/municipios.csv", timeout=10).text))
+coords['nome_match'] = coords['nome'].astype(str).str.lower().str.strip()
+coords['sigla_uf'] = coords['codigo_uf'].map(MAPA_UF).astype(str).str.upper().str.strip()
+NOMES_IBGE = set(coords['nome_match'])
+# Nomes que existem em um único município do país: só esses podem ser casados sem UF
+_cont = coords['nome_match'].value_counts()
+NOMES_UNICOS = set(_cont[_cont == 1].index)
+
+def _conhecido(parte):
+    chave = str(parte).lower().strip()
+    return (chave in NOMES_IBGE) or (chave in CORRECOES_MUNICIPIOS)
+
+def montar_lista(texto):
+    """Primeiro tenta casar a parte inteira com um município real; só o que
+    sobrar passa pela limpeza antiga, que remove conectivos e pode quebrar nomes."""
+    saida, resto = [], []
+    for parte in separar_partes(texto):
+        (saida if _conhecido(parte) else resto).append(parte)
+    for parte in resto:
+        saida.extend(extrair_lista(rotina_limpeza(parte)))
+    return saida
+
 col_alvo = next((c for c in df_base.columns if 'municipio' in c.lower() or 'município' in c.lower()), None)
-df_base['municipio_lista'] = df_base[col_alvo].apply(rotina_limpeza).apply(extrair_lista)
+df_base['municipio_lista'] = df_base[col_alvo].apply(montar_lista)
 # Registros complementares já trazem um município único e limpo: não passam pela rotina de limpeza textual
 _comp = df_base['origem_coleta'].notna()
 df_base.loc[_comp, 'municipio_lista'] = df_base.loc[_comp, col_alvo].apply(lambda x: [str(x).strip()])
@@ -128,10 +166,6 @@ df_explodido['lat_especial'] = df_explodido['municipio_match'].apply(lambda x: E
 df_explodido['lon_especial'] = df_explodido['municipio_match'].apply(lambda x: ENTIDADES_ESPECIAIS.get(x, {}).get('lon', None))
 df_explodido['uf_especial'] = df_explodido['municipio_match'].apply(lambda x: ENTIDADES_ESPECIAIS.get(x, {}).get('uf', None))
 
-logger.info("Acessando malha geodésica do IBGE...")
-coords = pd.read_csv(io.StringIO(requests.get("https://raw.githubusercontent.com/kelvins/municipios-brasileiros/main/csv/municipios.csv", timeout=10).text))
-coords['nome_match'] = coords['nome'].astype(str).str.lower().str.strip()
-coords['sigla_uf'] = coords['codigo_uf'].map(MAPA_UF).astype(str).str.upper().str.strip()
 
 # Dicionário de normalização de Estados para Siglas
 DE_NOME_PARA_SIGLA = {
@@ -157,6 +191,25 @@ df_mapa = pd.merge(
     how='left'
 )
 
+# Registros cujo campo 'Estado' não é uma UF ("Pernambuco e Paraíba", "Norte da Bahia"):
+# casa só pelo nome, e apenas quando ele identifica um único município no país
+_UFS_VALIDAS = set(MAPA_UF.values())
+# Só quando o próprio registro NÃO declara uma UF válida: se ele declara, a divergência
+# é um conflito de dado e o ponto não entra no mapa (fica em sem_coordenada.csv).
+_sem_uf = (df_mapa['latitude'].isna()
+           & df_mapa['municipio_match'].isin(NOMES_UNICOS)
+           & ~df_mapa['estado_match'].isin(_UFS_VALIDAS))
+if _sem_uf.any():
+    _fb = df_mapa.loc[_sem_uf, ['municipio_match']].merge(
+        coords[['nome_match', 'sigla_uf', 'latitude', 'longitude']].rename(
+            columns={'sigla_uf': 'uf_fb', 'latitude': 'lat_fb', 'longitude': 'lon_fb'}),
+        left_on='municipio_match', right_on='nome_match', how='left')
+    _fb.index = df_mapa.index[_sem_uf]
+    df_mapa.loc[_sem_uf, 'latitude'] = _fb['lat_fb']
+    df_mapa.loc[_sem_uf, 'longitude'] = _fb['lon_fb']
+    df_mapa.loc[_sem_uf, 'sigla_uf'] = _fb['uf_fb']
+    logger.info(f"Casados por nome único (UF ausente ou multiestadual): {int(_sem_uf.sum())} registros.")
+
 # Acoplamento de entidades especiais (áreas indígenas, rios, etc)
 df_mapa['latitude'] = df_mapa['lat_especial'].combine_first(df_mapa['latitude'])
 df_mapa['longitude'] = df_mapa['lon_especial'].combine_first(df_mapa['longitude'])
@@ -166,6 +219,10 @@ df_mapa['latitude'] = pd.to_numeric(df_mapa['lat_bairro'], errors='coerce').comb
 df_mapa['longitude'] = pd.to_numeric(df_mapa['lon_bairro'], errors='coerce').combine_first(df_mapa['longitude'])
 _orfaos_comp = df_mapa[df_mapa['origem_coleta'].notna() & df_mapa['latitude'].isna()]
 if len(_orfaos_comp): logger.warning(f"Complementares sem coordenada: {_orfaos_comp[col_alvo].tolist()}")
+_sem_coord = df_mapa[df_mapa['latitude'].isna()]
+if len(_sem_coord):
+    _sem_coord[[col_alvo, 'municipio_lista', 'Estado', 'Titulo da reportagem']].to_csv('sem_coordenada.csv', index=False, encoding='utf-8-sig')
+    logger.warning(f"{len(_sem_coord)} ocorrências sem coordenada (registradas em sem_coordenada.csv).")
 df_mapa = df_mapa.dropna(subset=['latitude', 'longitude']).copy()
 np.random.seed(42)  # dispersão reproduzível entre execuções
 _amp = np.where(pd.to_numeric(df_mapa['lat_bairro'], errors='coerce').notna(), 0.0015, 0.012)  # ~170 m em bairro, ~1,3 km em município
