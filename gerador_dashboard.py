@@ -23,7 +23,8 @@ REGRAS DE CONSTRUÇÃO DO EVENTO
    por ajustes_dashboard.csv (regra 6).
 3. UF: o campo Estado precisa citar exatamente uma UF ("Norte da Bahia." vale Bahia;
    "Pernambuco e Paraíba" fica fora).
-4. Ano: o da data; em data parcial, o único ano citado no campo.
+4. Ano: o da data; em data parcial, o único ano citado no campo. Entram só eventos a partir
+   de ANO_INICIAL (2017); os anteriores ficam registrados na auditoria como fora do recorte.
 5. Pés: só quantidade expressa em pés. "Cerca de" vale como ponto, "mais de" como piso,
    "entre A e B" como ponto médio, "mil" sem número como 1.000. Quando a célula traz pés e
    mudas, contam só os pés. Ficam fora: só mudas, toneladas, quilos, hectares, áreas,
@@ -51,6 +52,11 @@ ARQ_EVENTOS_REPETIDOS = 'eventos_repetidos.csv'
 ARQ_AJUSTES = 'ajustes_dashboard.csv'
 ARQ_DASHBOARD = 'dashboard.html'
 ARQ_AUDITORIA = 'eventos_dashboard.csv'
+
+# Recorte cronológico da análise (decisão de 17/11/2026). A série regular de registros começa
+# em 2017; antes disso há só dois eventos isolados (RJ 2011, 2 pés; RO 2014, 31 pés), separados
+# do restante por anos sem registro. O Atlas continua mostrando todos os pontos.
+ANO_INICIAL = 2017
 
 # População residente por UF: IBGE, Censo Demográfico 2022
 POPULACAO = {
@@ -188,6 +194,7 @@ def montar_eventos():
     base['situacao'] = np.select(
         [agregado, base['uf'].isna(), base['ano'].isna(), base['pes'].isna()],
         ['fora: balanço agregado', 'fora: sem UF única', 'fora: sem ano', 'fora: sem quantidade em pés'], 'evento')
+    base['situacao'] = base['situacao'].astype(object)
     if os.path.exists(ARQ_AJUSTES):
         aj = pd.read_csv(ARQ_AJUSTES, dtype=str)
         forcado = dict(zip(_link(aj['link']), aj['pes'].astype(float)))
@@ -196,6 +203,9 @@ def montar_eventos():
         base.loc[marca, 'regra_pes'] = 'ajuste manual'
         base.loc[marca, 'situacao'] = 'evento'
         logger.info(f"Ajustes manuais ('{ARQ_AJUSTES}'): {int(marca.sum())} registros.")
+    antes = (base['situacao'] == 'evento') & (base['ano'] < ANO_INICIAL)
+    base.loc[antes, 'situacao'] = f'fora: antes de {ANO_INICIAL}'
+    logger.info(f"Recorte cronológico: {int(antes.sum())} eventos anteriores a {ANO_INICIAL} retirados da análise.")
     base['regiao'] = base['uf'].map(REGIAO)
     colunas = ['situacao', 'uf', 'regiao', 'ano', 'pes', 'regra_pes', 'origem', 'data', 'município', 'Estado',
                'Quantidade de pés encontrados', 'Titulo da reportagem', 'Link de acesso']
