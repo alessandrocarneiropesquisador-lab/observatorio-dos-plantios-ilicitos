@@ -79,4 +79,4 @@ Arquivos de apoio, todos editáveis em planilha:
 - `eventos_dashboard.csv`: saída de auditoria do dashboard, um registro por linha, dizendo se virou evento e por qual regra.
 - `pontos_repetidos.csv`: saída de auditoria do Atlas, com os pontos retirados por repetição da mesma notícia.
 
-A análise do dashboard cobre 2017 a 2026 (2026 parcial); os dois eventos isolados anteriores (2011 e 2014) seguem no Atlas, mas ficam fora da estatística. As regras de leitura da quantidade de pés, da UF e do ano estão no cabeçalho de `gerador_dashboard.py`. Dependências: pandas, numpy e scipy.
+As regras de leitura da quantidade de pés, da UF e do ano estão no cabeçalho de `gerador_dashboard.py`. Dependências: pandas, numpy e scipy.
